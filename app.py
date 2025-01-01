@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import vision  # Import the vision module
 
 def main():
     st.set_page_config(page_title="Amas Data-Driven Strategy", layout="wide")
@@ -59,8 +60,7 @@ def main():
                     st.write(f"**Current Situation:**\n{row['CurrentSituation']}")
 
     elif active_page == "Vision":
-        st.title("Vision")
-        st.write("**Placeholder**: Present the ultimate data-driven vision for Amas Hypermarket here.")
+        vision.render_vision()  # Call the render_vision function from vision.py
 
     elif active_page == "Phase 1":
         st.title("Phase 1")
