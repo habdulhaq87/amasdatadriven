@@ -43,22 +43,10 @@ def main():
         Expand each **Aspect** to see more details.
         """)
 
-        # Optional: Search bar for aspects, categories, or current situation text
-        search_query = st.text_input("Search aspects, categories, or keywords in the current situation:", "")
-        if search_query:
-            # Filter rows if they contain the search query (case-insensitive)
-            filtered_df = df[
-                df["Category"].str.contains(search_query, case=False) |
-                df["Aspect"].str.contains(search_query, case=False) |
-                df["CurrentSituation"].str.contains(search_query, case=False)
-            ]
-        else:
-            filtered_df = df
-
         # Group by category so each category is shown under a header
-        categories = filtered_df["Category"].unique()
+        categories = df["Category"].unique()
         for cat in categories:
-            cat_data = filtered_df[filtered_df["Category"] == cat]
+            cat_data = df[df["Category"] == cat]
             st.subheader(cat)  # Show category name
             # Create an expander for each aspect
             for idx, row in cat_data.iterrows():
