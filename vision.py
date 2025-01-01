@@ -1,8 +1,6 @@
 import streamlit as st
 
 def render_vision():
-    st.set_page_config(page_title="Vision: Data-Driven Hypermarket", layout="wide")
-
     # Title and Introduction
     st.title("Vision: The Ultimate Data-Driven Hypermarket")
     st.write("""
@@ -63,6 +61,3 @@ def render_vision():
 
     st.write("---")
     st.success("This vision represents the future of AMAS Hypermarket—an operation where **data informs every decision**, boosting efficiency, customer satisfaction, and profitability.")
-
-if __name__ == "__main__":
-    render_vision()
