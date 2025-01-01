@@ -5,16 +5,17 @@ def main():
     st.set_page_config(page_title="Amas Data-Driven Strategy", layout="wide")
 
     # --- Sidebar Navigation ---
+    st.sidebar.title("Navigation")
     menu_items = [
-        "Home", 
-        "Current Stage", 
-        "Vision", 
-        "Phase 1", 
-        "Phase 2", 
-        "Phase 3", 
+        "Home",
+        "Current Stage",
+        "Vision",
+        "Phase 1",
+        "Phase 2",
+        "Phase 3",
         "Roadmap"
     ]
-    choice = st.sidebar.selectbox("Navigation", menu_items)
+    choice = st.sidebar.radio("Go to:", menu_items)
 
     # --- Load Data ---
     # Make sure amas_data.csv is in the same directory or adjust the path accordingly
