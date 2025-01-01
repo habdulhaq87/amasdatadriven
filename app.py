@@ -4,25 +4,29 @@ import pandas as pd
 def main():
     st.set_page_config(page_title="Amas Data-Driven Strategy", layout="wide")
 
-    # --- Sidebar Navigation ---
+    # --- Sidebar Buttons for Navigation ---
     st.sidebar.title("Navigation")
-    menu_items = [
-        "Home",
-        "Current Stage",
-        "Vision",
-        "Phase 1",
-        "Phase 2",
-        "Phase 3",
-        "Roadmap"
-    ]
-    choice = st.sidebar.radio("Go to:", menu_items)
+    pages = {
+        "Home": "Home",
+        "Current Stage": "Current Stage",
+        "Vision": "Vision",
+        "Phase 1": "Phase 1",
+        "Phase 2": "Phase 2",
+        "Phase 3": "Phase 3",
+        "Roadmap": "Roadmap",
+    }
+
+    # Create buttons in the sidebar and update the active page
+    active_page = "Home"  # Default page
+    for page_name in pages.keys():
+        if st.sidebar.button(page_name):
+            active_page = page_name
 
     # --- Load Data ---
-    # Make sure amas_data.csv is in the same directory or adjust the path accordingly
-    df = pd.read_csv("amas_data.csv", sep=",")  # or just pd.read_csv("amas_data.csv") if comma is default
+    df = pd.read_csv("amas_data.csv", sep=",")  # Adjust the path as needed
 
     # --- Main Content ---
-    if choice == "Home":
+    if active_page == "Home":
         st.title("Amas Hypermarket: Data-Driven Strategy App")
         st.write("""
         **Welcome to the Amas Hypermarket Data-Driven Strategy App!**
@@ -36,7 +40,7 @@ def main():
         st.write("Below is a quick look at the data stored in `amas_data.csv` (for reference):")
         st.dataframe(df)
 
-    elif choice == "Current Stage":
+    elif active_page == "Current Stage":
         st.title("Current Stage")
         st.write("""
         Below is an overview of the **current situation** for each category at Amas Hypermarket, 
@@ -54,23 +58,23 @@ def main():
                 with st.expander(f"**Aspect:** {row['Aspect']}"):
                     st.write(f"**Current Situation:**\n{row['CurrentSituation']}")
 
-    elif choice == "Vision":
+    elif active_page == "Vision":
         st.title("Vision")
         st.write("**Placeholder**: Present the ultimate data-driven vision for Amas Hypermarket here.")
 
-    elif choice == "Phase 1":
+    elif active_page == "Phase 1":
         st.title("Phase 1")
         st.write("**Placeholder**: Outline Early & Doable steps here.")
 
-    elif choice == "Phase 2":
+    elif active_page == "Phase 2":
         st.title("Phase 2")
         st.write("**Placeholder**: Describe Extended Digitization & Standardization steps here.")
 
-    elif choice == "Phase 3":
+    elif active_page == "Phase 3":
         st.title("Phase 3")
         st.write("**Placeholder**: Advanced Analytics & Automation phase details here.")
 
-    elif choice == "Roadmap":
+    elif active_page == "Roadmap":
         st.title("Roadmap")
         st.write("**Placeholder**: Provide a timeline and milestones for Phases 1–3 here.")
 
