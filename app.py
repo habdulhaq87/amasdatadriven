@@ -17,8 +17,8 @@ def main():
     choice = st.sidebar.selectbox("Navigation", menu_items)
 
     # --- Load Data ---
-    # Adjust the file path to match your setup, e.g., "./amas_data.csv" if in the same folder
-    df = pd.read_csv("amas_data.csv")
+    # Make sure amas_data.csv is in the same directory or adjust the path accordingly
+    df = pd.read_csv("amas_data.csv", sep=",")  # or just pd.read_csv("amas_data.csv") if comma is default
 
     # --- Main Content ---
     if choice == "Home":
@@ -37,28 +37,53 @@ def main():
 
     elif choice == "Current Stage":
         st.title("Current Stage")
-        st.write("**Placeholder**: Describe the current situation in more detail here. You can integrate specific data from `amas_data.csv` as needed.")
+        st.write("""
+        Below is an overview of the **current situation** for each category at Amas Hypermarket, 
+        based on our observations and the data in `amas_data.csv`. 
+        Expand each **Aspect** to see more details.
+        """)
+
+        # Optional: Search bar for aspects, categories, or current situation text
+        search_query = st.text_input("Search aspects, categories, or keywords in the current situation:", "")
+        if search_query:
+            # Filter rows if they contain the search query (case-insensitive)
+            filtered_df = df[
+                df["Category"].str.contains(search_query, case=False) |
+                df["Aspect"].str.contains(search_query, case=False) |
+                df["CurrentSituation"].str.contains(search_query, case=False)
+            ]
+        else:
+            filtered_df = df
+
+        # Group by category so each category is shown under a header
+        categories = filtered_df["Category"].unique()
+        for cat in categories:
+            cat_data = filtered_df[filtered_df["Category"] == cat]
+            st.subheader(cat)  # Show category name
+            # Create an expander for each aspect
+            for idx, row in cat_data.iterrows():
+                with st.expander(f"**Aspect:** {row['Aspect']}"):
+                    st.write(f"**Current Situation:**\n{row['CurrentSituation']}")
 
     elif choice == "Vision":
         st.title("Vision")
-        st.write("**Placeholder**: Present the ultimate data-driven vision for Amas Hypermarket here. Include references to the desired end-state of operations, AI-driven processes, etc.")
+        st.write("**Placeholder**: Present the ultimate data-driven vision for Amas Hypermarket here.")
 
     elif choice == "Phase 1":
         st.title("Phase 1")
-        st.write("**Placeholder**: Outline Early & Doable steps, referencing relevant rows in `amas_data.csv`. For example, scanning, basic automation, etc.")
+        st.write("**Placeholder**: Outline Early & Doable steps here.")
 
     elif choice == "Phase 2":
         st.title("Phase 2")
-        st.write("**Placeholder**: Describe Extended Digitization & Standardization, referencing what you plan to automate more deeply.")
+        st.write("**Placeholder**: Describe Extended Digitization & Standardization steps here.")
 
     elif choice == "Phase 3":
         st.title("Phase 3")
-        st.write("**Placeholder**: Present the Advanced Analytics & Automation phase, featuring AI-driven forecasting, real-time planogram adjustments, etc.")
+        st.write("**Placeholder**: Advanced Analytics & Automation phase details here.")
 
     elif choice == "Roadmap":
         st.title("Roadmap")
-        st.write("**Placeholder**: Provide a high-level timeline (e.g., 0-2 months for Phase 1, 2-4 months for Phase 2, etc.). You can add tables, visuals, or bullet points.")
-
+        st.write("**Placeholder**: Provide a timeline and milestones for Phases 1–3 here.")
 
 if __name__ == "__main__":
     main()
