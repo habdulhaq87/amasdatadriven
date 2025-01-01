@@ -4,7 +4,8 @@ def render_vision():
     # Title and Introduction
     st.title("Vision: The Ultimate Data-Driven Hypermarket")
     st.write("""
-    Imagine a future where **every decision** at AMAS Hypermarket—whether in receiving, store-level management, or final sales—is guided by real-time insights and **predictive analytics**. 
+    Imagine a future where **every decision** at AMAS Hypermarket—whether in receiving, store-level management, 
+    or final sales—is guided by real-time insights and **predictive analytics**. 
     Here's how a fully integrated, data-driven operation transforms every aspect of AMAS Hypermarket:
     """)
 
@@ -12,7 +13,11 @@ def render_vision():
     st.markdown("### Seamless Delivery & Receiving")
     col1, col2 = st.columns([1, 3])
     with col1:
-        st.image("https://via.placeholder.com/300x200?text=Delivery+Scanning", caption="Automated Receiving", use_container_width=True)
+        st.image(
+            "https://via.placeholder.com/300x200?text=Delivery+Scanning",
+            caption="Automated Receiving",
+            use_container_width=True
+        )
     with col2:
         st.markdown("""
         - **Automated Scanning & PO Cross-Referencing**: Deliveries are instantly verified against purchase orders using barcode or QR code scanning. Any discrepancy—be it quantity or expiration date—triggers an immediate alert, ensuring fast resolution and minimal waste.
@@ -27,12 +32,20 @@ def render_vision():
         - **Smart Stock Allocation**: AI-powered categorization and tracking ensure items are optimally placed and replenished, reducing stockouts and overstocks.
         """)
     with col2:
-        st.image("https://via.placeholder.com/300x200?text=Inventory+Management", caption="Integrated Inventory", use_container_width=True)
+        st.image(
+            "https://via.placeholder.com/300x200?text=Inventory+Management",
+            caption="Integrated Inventory",
+            use_container_width=True
+        )
 
     st.markdown("### Optimized Store Operations")
     col1, col2 = st.columns([1, 3])
     with col1:
-        st.image("https://via.placeholder.com/300x200?text=Store+Operations", caption="Optimized Shelving", use_container_width=True)
+        st.image(
+            "https://via.placeholder.com/300x200?text=Store+Operations",
+            caption="Optimized Shelving",
+            use_container_width=True
+        )
     with col2:
         st.markdown("""
         - **Dynamic Shelf Stocking**: Shelves update in real time based on product demand, sales trends, and planned promotions. Category groupings are continually refined to improve customer flow and increase cross-sell opportunities.
@@ -47,12 +60,20 @@ def render_vision():
         - **Centralized Dashboards**: Managers and staff have continuous visibility into key performance metrics—sales data, inventory fluctuations, staff productivity—enabling proactive interventions and better decision-making.
         """)
     with col2:
-        st.image("https://via.placeholder.com/300x200?text=Dashboard+Monitoring", caption="Real-Time Dashboards", use_container_width=True)
+        st.image(
+            "https://via.placeholder.com/300x200?text=Dashboard+Monitoring",
+            caption="Real-Time Dashboards",
+            use_container_width=True
+        )
 
     st.markdown("### Human Management Supported by Data")
     col1, col2 = st.columns([1, 3])
     with col1:
-        st.image("https://via.placeholder.com/300x200?text=Staff+Management", caption="Data-Driven Staff Management", use_container_width=True)
+        st.image(
+            "https://via.placeholder.com/300x200?text=Staff+Management",
+            caption="Data-Driven Staff Management",
+            use_container_width=True
+        )
     with col2:
         st.markdown("""
         - **Real-Time Task Prioritization**: From receiving alerts about near-expiry items to identifying best-selling products that need restocking, data drives each workstream, minimizing manual guesswork.
