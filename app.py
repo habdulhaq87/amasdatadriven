@@ -3,6 +3,8 @@ import vision
 import current  # Import the Current Stage module
 import home
 import phase1
+import phase2
+
 
 def main():
     st.set_page_config(page_title="Amas Data-Driven Strategy", layout="wide")
@@ -42,8 +44,7 @@ def main():
         phase1.render_phase1()
 
     elif active_page == "Phase 2":
-        st.title("Phase 2")
-        st.write("**Placeholder**: Describe Extended Digitization & Standardization steps here.")
+        phase2.render_phase2()
 
     elif active_page == "Phase 3":
         st.title("Phase 3")
