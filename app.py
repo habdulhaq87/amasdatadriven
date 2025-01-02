@@ -7,12 +7,14 @@ import phase2
 import phase3
 import roadmap
 
-
 def main():
+    # Set up page config
     st.set_page_config(page_title="Amas Data-Driven Strategy", layout="wide")
 
-    # --- Sidebar Buttons for Navigation ---
+    # --- Sidebar: Logo & Navigation ---
+    st.sidebar.image("input/logo.jpg", use_container_width=True)  # Logo in the sidebar
     st.sidebar.title("Navigation")
+
     pages = {
         "Home": "Home",
         "Current Stage": "Current Stage",
@@ -23,23 +25,24 @@ def main():
         "Roadmap": "Roadmap",
     }
 
-    # Create buttons in the sidebar and update the active page
+    # Navigation via sidebar buttons
     active_page = "Home"  # Default page
     for page_name in pages.keys():
         if st.sidebar.button(page_name):
             active_page = page_name
 
-    # --- Main Content ---
+    # --- Main Content: Banner & Page Logic ---
+
+    # Display a banner/cover image at the top of every page (optional)
+    st.image("input/cover.jpg", use_container_width=True)
+
     if active_page == "Home":
-        # Call the render_home function to display the home page content
         home.render_home()
 
     elif active_page == "Current Stage":
-        # Display the Current Stage page
         current.render_current_stage()
 
     elif active_page == "Vision":
-        # Display the Vision page
         vision.render_vision()
 
     elif active_page == "Phase 1":
