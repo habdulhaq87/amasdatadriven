@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import vision
 import current  # Import the Current Stage module
+import home
 
 def main():
     st.set_page_config(page_title="Amas Data-Driven Strategy", layout="wide")
@@ -23,7 +24,8 @@ def main():
     for page_name in pages.keys():
         if st.sidebar.button(page_name):
             active_page = page_name
-
+    if active_page == "Home":
+        home.render_home()
     # --- Main Content ---
     if active_page == "Home":
         st.title("Amas Hypermarket: Data-Driven Strategy App")
