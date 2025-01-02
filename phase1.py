@@ -26,6 +26,7 @@ def render_phase1():
     inventory_animation = load_lottie_animation("input/inventory.json")
     store_animation = load_lottie_animation("input/store.json")
     order_animation = load_lottie_animation("input/order.json")
+    postsell_animation = load_lottie_animation("input/postsell.json")
 
     # Identify unique categories
     categories = df["Category"].unique()
@@ -52,6 +53,8 @@ def render_phase1():
                 st_lottie(store_animation, key="store_operations", height=200, width=180)
             elif cat == "Selling the Items":
                 st_lottie(order_animation, key="selling_items", height=200, width=180)
+            elif cat == "Post-Sale & Procurement":
+                st_lottie(postsell_animation, key="post_sale", height=200, width=180)
             else:
                 # Placeholder for other categories
                 st.image(
