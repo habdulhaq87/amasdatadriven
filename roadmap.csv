@@ -1,0 +1,4 @@
+"Phase","Duration","KeySteps"
+"Phase 1","0–3 Months","- Procurement of scanning hardware and minimal software updates.\n- Short training sessions for finance director (PO automation) and in-house programmer (Python).\n- Roll-out of basic scanning for deliveries and simplified QC checks."
+"Phase 2","3–9 Months","- Deploy integrated software modules or ERP expansions (Phenix or similar) for real-time tracking.\n- Implement dashboards and partial automation of pricing/promotions.\n- Expand staff training to ensure consistency across departments."
+"Phase 3","9–18 Months","- Roll out advanced AI functionalities (predictive restocking, dynamic planograms).\n- Pilot cashierless checkout or advanced POS enhancements.\n- Fine-tune inventory analytics, refine predictive models, and ensure system scalability."
