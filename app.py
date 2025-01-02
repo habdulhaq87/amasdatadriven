@@ -8,7 +8,6 @@ import phase3
 import roadmap
 
 def main():
-    # Set up page config
     st.set_page_config(page_title="Amas Data-Driven Strategy", layout="wide")
 
     # --- Sidebar: Logo & Navigation ---
@@ -25,16 +24,15 @@ def main():
         "Roadmap": "Roadmap",
     }
 
-    # Navigation via sidebar buttons
+    # Create buttons in the sidebar and update the active page
     active_page = "Home"  # Default page
     for page_name in pages.keys():
         if st.sidebar.button(page_name):
             active_page = page_name
 
     # --- Main Content: Banner & Page Logic ---
-
-    # Display a banner/cover image at the top of every page (optional)
-    st.image("input/cover.jpg", use_container_width=True)
+    # Reduce the size of the cover image with the 'width' parameter
+    st.image("input/cover.jpg", width=600)
 
     if active_page == "Home":
         home.render_home()
