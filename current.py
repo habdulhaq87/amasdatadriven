@@ -7,7 +7,7 @@ def render_current_stage():
     st.write("""
     This section provides a **high-level overview** of AMAS Hypermarket’s **current situation**, 
     categorized into functional areas (e.g., Receiving & QC, Inventory Management, etc.). 
-    Each category is accompanied by a placeholder image and a list of **key aspects** 
+    Each category is accompanied by an image and a list of **key aspects** 
     that describe existing challenges or operational workflows.
     """)
 
@@ -15,9 +15,17 @@ def render_current_stage():
     df = pd.read_csv("amas_data.csv", sep=",")  # Adjust the path if needed
     categories = df["Category"].unique()
 
-    # For styling consistency, let's alternate the layout for each category:
+    # Define specific images for categories
+    category_images = {
+        "Receiving & QC": "input/receiving.jpg",
+        "Inventory Management": "input/inventory.jpg",
+        "Selling the Items": "input/(14).JPG",
+        "Post-Sale & Procurement": "input/(12).JPG",
+    }
+
+    # For styling consistency, alternate the layout for each category:
     # Even-index categories: Image on left, text on right.
-    # Odd-index categories:  Text on left, image on right.
+    # Odd-index categories: Text on left, image on right.
     for i, cat in enumerate(categories):
         cat_data = df[df["Category"] == cat]
 
@@ -31,12 +39,21 @@ def render_current_stage():
             col2, col1 = st.columns([3, 1])
 
         with col1:
-            # Generate a placeholder image based on the category name
-            st.image(
-                f"https://via.placeholder.com/300x200?text={cat.replace(' ', '+')}",
-                caption=f"Current Stage: {cat}",
-                use_container_width=True
-            )
+            # Use the specified image for the category
+            image_path = category_images.get(cat, None)  # Default to None if category not in dictionary
+            if image_path:
+                st.image(
+                    image_path,
+                    caption=f"Current Stage: {cat}",
+                    use_container_width=True
+                )
+            else:
+                st.warning(f"No image found for {cat}. Using placeholder.")
+                st.image(
+                    f"https://via.placeholder.com/300x200?text={cat.replace(' ', '+')}",
+                    caption=f"Current Stage: {cat}",
+                    use_container_width=True
+                )
 
         with col2:
             # Build a bullet-list for all aspects under this category
@@ -51,3 +68,7 @@ def render_current_stage():
 
     st.write("---")
     st.info("This overview captures the **status quo** at AMAS Hypermarket. For more details on the future roadmap and how we plan to transition to a data-driven operation, explore the other sections from the sidebar.")
+
+
+if __name__ == "__main__":
+    render_current_stage()
