@@ -5,6 +5,7 @@ import home
 import phase1
 import phase2
 import phase3
+import roadmap
 
 
 def main():
@@ -51,8 +52,7 @@ def main():
         phase3.render_phase3()
 
     elif active_page == "Roadmap":
-        st.title("Roadmap")
-        st.write("**Placeholder**: Provide a timeline and milestones for Phases 1–3 here.")
+        roadmap.render_roadmap()
 
 if __name__ == "__main__":
     main()
