@@ -1,6 +1,14 @@
 import streamlit as st
 import pandas as pd
 
+# Mapping categories to specific images or animations
+CATEGORY_IMAGES = {
+    "Receiving & QC": "input/delivery.gif",  # Updated to animation
+    "Inventory Management": "https://via.placeholder.com/300x200?text=Inventory",
+    "Selling the Items": "https://via.placeholder.com/300x200?text=Selling",
+    "Post-Sale & Procurement": "https://via.placeholder.com/300x200?text=Post-Sale"
+}
+
 def render_phase1():
     # Title and Introduction
     st.title("Phase 1: Early & Doable Improvements")
@@ -23,29 +31,32 @@ def render_phase1():
         # Display the Category Title
         st.markdown(f"## {cat} — Phase 1 Improvements")
 
-        # Optional: alternate layout for each category
-        # Even index => image on the left; odd index => image on the right
+        # Alternate layout for each category
         if i % 2 == 0:
             col_img, col_text = st.columns([1, 3])
         else:
             col_text, col_img = st.columns([3, 1])
 
         with col_img:
-            # You can replace the placeholder with a relevant image for the category if desired
-            st.image(
-                f"https://via.placeholder.com/300x200?text={cat.replace(' ', '+')}",
-                caption=f"Focusing on Phase 1 for {cat}",
-                use_container_width=True
-            )
+            # Use CATEGORY_IMAGES dictionary to dynamically load images or animations
+            image_path = CATEGORY_IMAGES.get(cat, None)
+            if image_path:
+                st.image(
+                    image_path,
+                    caption=f"Focusing on Phase 1 for {cat}",
+                    use_container_width=True
+                )
+            else:
+                st.warning(f"No image or animation found for {cat}")
 
         with col_text:
-            # For each Aspect in the Category, compare CurrentSituation vs. Phase1
+            # For each Aspect in the Category, show a comparison of CurrentSituation vs Phase1
             for _, row in cat_data.iterrows():
                 aspect_title = row["Aspect"]
                 current_situation = row["CurrentSituation"]
                 phase1_improvement = row["Phase1"]
 
-                # Create an expander using only the aspect's name, no "Aspect:" text
+                # Create an expander for each aspect
                 with st.expander(f"**{aspect_title}**"):
                     ccol, pcol = st.columns(2)
                     with ccol:
