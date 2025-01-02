@@ -21,8 +21,11 @@ def render_phase1():
     # Load Data
     df = pd.read_csv("amas_data.csv", sep=",")  # Adjust if file path differs
 
-    # Load Lottie animation for Receiving & QC
+    # Load Lottie animations
     arrive_animation = load_lottie_animation("input/arrive.json")
+    inventory_animation = load_lottie_animation("input/inventory.json")
+    store_animation = load_lottie_animation("input/store.json")
+    order_animation = load_lottie_animation("input/order.json")
 
     # Identify unique categories
     categories = df["Category"].unique()
@@ -40,10 +43,17 @@ def render_phase1():
             col_text, col_img = st.columns([3, 1])
 
         with col_img:
-            # Use the Lottie animation for "Receiving & QC"; otherwise, use a placeholder
+            # Use Lottie animations for specific categories
             if cat == "Receiving & QC":
                 st_lottie(arrive_animation, key="receiving_qc", height=200, width=180)
+            elif cat == "Inventory Management":
+                st_lottie(inventory_animation, key="inventory_management", height=200, width=180)
+            elif cat == "Store-Level Operations":
+                st_lottie(store_animation, key="store_operations", height=200, width=180)
+            elif cat == "Selling the Items":
+                st_lottie(order_animation, key="selling_items", height=200, width=180)
             else:
+                # Placeholder for other categories
                 st.image(
                     f"https://via.placeholder.com/300x200?text={cat.replace(' ', '+')}",
                     caption=f"Focusing on Phase 1 for {cat}",
