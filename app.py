@@ -13,10 +13,9 @@ def main():
     st.set_page_config(page_title="Amas Data-Driven Strategy", layout="wide")
 
     # --- Sidebar: Logo & Navigation ---
-    # For the sidebar logo, we can still use st.image directly:
     st.sidebar.image("input/logo.jpg", use_container_width=True)
-
     st.sidebar.title("Navigation")
+
     pages = {
         "Home": "Home",
         "Current Stage": "Current Stage",
@@ -27,36 +26,35 @@ def main():
         "Roadmap": "Roadmap",
     }
 
-    # Create buttons in the sidebar and update the active page
+    # Navigation logic
     active_page = "Home"  # Default page
     for page_name in pages.keys():
         if st.sidebar.button(page_name):
             active_page = page_name
 
-    # --- Main Content: Centered Cover Image & Page Logic ---
-
-    # Convert the local cover image to Base64 so we can embed it via HTML
-    try:
-        with open("input/cover.jpg", "rb") as img_file:
-            cover_bytes = img_file.read()
-            cover_b64 = base64.b64encode(cover_bytes).decode()
-    except FileNotFoundError:
-        cover_b64 = None
-        st.warning("Cover image not found: 'input/cover.jpg'")
-
-    # If the image exists, display it in the center
-    if cover_b64:
-        st.markdown(
-            f"""
-            <div style="text-align: center;">
-                <img src="data:image/jpg;base64,{cover_b64}" alt="Cover Image" width="600">
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    # Now render the page specified
+    # --- Main Content: Only show cover on Home page ---
     if active_page == "Home":
+        # Convert the local cover image to Base64
+        try:
+            with open("input/cover.jpg", "rb") as img_file:
+                cover_bytes = img_file.read()
+                cover_b64 = base64.b64encode(cover_bytes).decode()
+        except FileNotFoundError:
+            cover_b64 = None
+            st.warning("Cover image not found: 'input/cover.jpg'")
+
+        # If the cover exists, display it in the center
+        if cover_b64:
+            st.markdown(
+                f"""
+                <div style="text-align: center;">
+                    <img src="data:image/jpg;base64,{cover_b64}" alt="Cover Image" width="600">
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+        # Now render the HOME page
         home.render_home()
 
     elif active_page == "Current Stage":
