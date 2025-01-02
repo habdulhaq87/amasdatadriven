@@ -4,6 +4,7 @@ import current  # Import the Current Stage module
 import home
 import phase1
 import phase2
+import phase3
 
 
 def main():
@@ -47,8 +48,7 @@ def main():
         phase2.render_phase2()
 
     elif active_page == "Phase 3":
-        st.title("Phase 3")
-        st.write("**Placeholder**: Advanced Analytics & Automation phase details here.")
+        phase3.render_phase3()
 
     elif active_page == "Roadmap":
         st.title("Roadmap")
