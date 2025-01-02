@@ -14,7 +14,7 @@ def render_vision():
     col1, col2 = st.columns([1, 3])
     with col1:
         st.image(
-            "https://via.placeholder.com/300x200?text=Delivery+Scanning",
+            "input/seamless.jpeg",
             caption="Automated Receiving",
             use_container_width=True
         )
@@ -33,7 +33,7 @@ def render_vision():
         """)
     with col2:
         st.image(
-            "https://via.placeholder.com/300x200?text=Inventory+Management",
+            "input/integ.jpeg",
             caption="Integrated Inventory",
             use_container_width=True
         )
@@ -42,7 +42,7 @@ def render_vision():
     col1, col2 = st.columns([1, 3])
     with col1:
         st.image(
-            "https://via.placeholder.com/300x200?text=Store+Operations",
+            "input/well.jpeg",
             caption="Optimized Shelving",
             use_container_width=True
         )
@@ -61,7 +61,7 @@ def render_vision():
         """)
     with col2:
         st.image(
-            "https://via.placeholder.com/300x200?text=Dashboard+Monitoring",
+            "input/ceo.jpeg",
             caption="Real-Time Dashboards",
             use_container_width=True
         )
@@ -70,7 +70,7 @@ def render_vision():
     col1, col2 = st.columns([1, 3])
     with col1:
         st.image(
-            "https://via.placeholder.com/300x200?text=Staff+Management",
+            "input/hr.jpg",
             caption="Data-Driven Staff Management",
             use_container_width=True
         )
