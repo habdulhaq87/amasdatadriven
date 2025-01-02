@@ -1,4 +1,6 @@
 import streamlit as st
+import base64
+
 import vision
 import current  # Import the Current Stage module
 import home
@@ -11,9 +13,10 @@ def main():
     st.set_page_config(page_title="Amas Data-Driven Strategy", layout="wide")
 
     # --- Sidebar: Logo & Navigation ---
-    st.sidebar.image("input/logo.jpg", use_container_width=True)  # Logo in the sidebar
-    st.sidebar.title("Navigation")
+    # For the sidebar logo, we can still use st.image directly:
+    st.sidebar.image("input/logo.jpg", use_container_width=True)
 
+    st.sidebar.title("Navigation")
     pages = {
         "Home": "Home",
         "Current Stage": "Current Stage",
@@ -31,22 +34,28 @@ def main():
             active_page = page_name
 
     # --- Main Content: Centered Cover Image & Page Logic ---
-    # Display a centered cover image
-    st.markdown(
-        """
-        <style>
-            .centered-image {
-                display: flex;
-                justify-content: center;
-            }
-        </style>
-        <div class="centered-image">
-            <img src="input/cover.jpg" alt="Cover Image" style="width: 60%; max-width: 800px;">
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
 
+    # Convert the local cover image to Base64 so we can embed it via HTML
+    try:
+        with open("input/cover.jpg", "rb") as img_file:
+            cover_bytes = img_file.read()
+            cover_b64 = base64.b64encode(cover_bytes).decode()
+    except FileNotFoundError:
+        cover_b64 = None
+        st.warning("Cover image not found: 'input/cover.jpg'")
+
+    # If the image exists, display it in the center
+    if cover_b64:
+        st.markdown(
+            f"""
+            <div style="text-align: center;">
+                <img src="data:image/jpg;base64,{cover_b64}" alt="Cover Image" width="600">
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    # Now render the page specified
     if active_page == "Home":
         home.render_home()
 
