@@ -17,7 +17,7 @@ def render_home():
     col1, col2 = st.columns([1, 3])
     with col1:
         st.image(
-            "https://via.placeholder.com/300x200?text=Observational+Study",
+            "input/manual.jpg",
             caption="On-site Observations",
             use_container_width=True
         )
@@ -78,7 +78,7 @@ def render_home():
     col1, col2 = st.columns([1, 3])
     with col1:
         st.image(
-            "https://via.placeholder.com/300x200?text=Roadmap",
+            "input/roadmap.jpg",
             caption="Implementation Path",
             use_container_width=True
         )
