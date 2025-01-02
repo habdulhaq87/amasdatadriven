@@ -42,7 +42,7 @@ def render_phase1():
         with col_img:
             # Use the Lottie animation for "Receiving & QC"; otherwise, use a placeholder
             if cat == "Receiving & QC":
-                st_lottie(arrive_animation, key="receiving_qc", height=200, width=200)
+                st_lottie(arrive_animation, key="receiving_qc", height=200, width=180)
             else:
                 st.image(
                     f"https://via.placeholder.com/300x200?text={cat.replace(' ', '+')}",
