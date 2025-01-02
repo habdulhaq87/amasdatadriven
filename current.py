@@ -7,7 +7,7 @@ CATEGORY_IMAGES = {
     "Receiving & QC": "input/receiving.jpg",
     "Inventory Management": "input/inventory.jpg",
     "Selling the Items": "input/cashier.JPG",
-    "Post-Sale & Procurement": "input/(22).JPG"
+    "Post-Sale & Procurement": "input/post.JPG"
 }
 
 def correct_image_orientation(image_path):
