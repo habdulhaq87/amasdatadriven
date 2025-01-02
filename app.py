@@ -31,11 +31,17 @@ def main():
             active_page = page_name
 
     # --- Main Content: Centered Cover Image & Page Logic ---
-    # Center-align the cover image
+    # Display a centered cover image
     st.markdown(
         """
-        <div style="text-align: center;">
-            <img src="input/cover.jpg" width="600" alt="Cover Image">
+        <style>
+            .centered-image {
+                display: flex;
+                justify-content: center;
+            }
+        </style>
+        <div class="centered-image">
+            <img src="input/cover.jpg" alt="Cover Image" style="width: 60%; max-width: 800px;">
         </div>
         """,
         unsafe_allow_html=True
