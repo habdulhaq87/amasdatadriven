@@ -2,6 +2,7 @@ import streamlit as st
 import vision
 import current  # Import the Current Stage module
 import home
+import phase1
 
 def main():
     st.set_page_config(page_title="Amas Data-Driven Strategy", layout="wide")
@@ -38,8 +39,7 @@ def main():
         vision.render_vision()
 
     elif active_page == "Phase 1":
-        st.title("Phase 1")
-        st.write("**Placeholder**: Outline Early & Doable steps here.")
+        phase1.render_phase1()
 
     elif active_page == "Phase 2":
         st.title("Phase 2")
