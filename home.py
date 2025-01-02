@@ -1,4 +1,25 @@
 import streamlit as st
+from PIL import Image, ExifTags
+
+def correct_image_orientation(image_path):
+    try:
+        image = Image.open(image_path)
+        for orientation in ExifTags.TAGS.keys():
+            if ExifTags.TAGS[orientation] == 'Orientation':
+                break
+        exif = image._getexif()
+        if exif is not None:
+            orientation = exif.get(orientation, None)
+            if orientation == 3:
+                image = image.rotate(180, expand=True)
+            elif orientation == 6:
+                image = image.rotate(270, expand=True)
+            elif orientation == 8:
+                image = image.rotate(90, expand=True)
+        return image
+    except (AttributeError, KeyError, IndexError):
+        # If no EXIF data is found or an error occurs, return the image as is
+        return Image.open(image_path)
 
 def render_home():
     # Title and Intro
@@ -16,8 +37,9 @@ def render_home():
     st.markdown("### Observational Study & Key Challenges")
     col1, col2 = st.columns([1, 3])
     with col1:
+        corrected_manual = correct_image_orientation("input/manual.jpg")
         st.image(
-            "input/manual.jpg",
+            corrected_manual,
             caption="On-site Observations",
             use_container_width=True
         )
