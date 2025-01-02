@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
-import vision  # Import the vision module
+import vision
+import current  # Import the Current Stage module
 
 def main():
     st.set_page_config(page_title="Amas Data-Driven Strategy", layout="wide")
@@ -23,9 +24,6 @@ def main():
         if st.sidebar.button(page_name):
             active_page = page_name
 
-    # --- Load Data ---
-    df = pd.read_csv("amas_data.csv", sep=",")  # Adjust the path as needed
-
     # --- Main Content ---
     if active_page == "Home":
         st.title("Amas Hypermarket: Data-Driven Strategy App")
@@ -39,28 +37,14 @@ def main():
         culminating in a roadmap for successful adoption.
         """)
         st.write("Below is a quick look at the data stored in `amas_data.csv` (for reference):")
+        df = pd.read_csv("amas_data.csv", sep=",")
         st.dataframe(df)
 
     elif active_page == "Current Stage":
-        st.title("Current Stage")
-        st.write("""
-        Below is an overview of the **current situation** for each category at Amas Hypermarket, 
-        based on our observations and the data in `amas_data.csv`. 
-        Expand each **Aspect** to see more details.
-        """)
-
-        # Group by category so each category is shown under a header
-        categories = df["Category"].unique()
-        for cat in categories:
-            cat_data = df[df["Category"] == cat]
-            st.subheader(cat)  # Show category name
-            # Create an expander for each aspect
-            for idx, row in cat_data.iterrows():
-                with st.expander(f"**Aspect:** {row['Aspect']}"):
-                    st.write(f"**Current Situation:**\n{row['CurrentSituation']}")
+        current.render_current_stage()  # Call the Current Stage function from current.py
 
     elif active_page == "Vision":
-        vision.render_vision()  # Call the render_vision function from vision.py
+        vision.render_vision()  # Call the Vision function from vision.py
 
     elif active_page == "Phase 1":
         st.title("Phase 1")
