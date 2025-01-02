@@ -1,5 +1,4 @@
 import streamlit as st
-import pandas as pd
 import vision
 import current  # Import the Current Stage module
 import home
@@ -24,29 +23,19 @@ def main():
     for page_name in pages.keys():
         if st.sidebar.button(page_name):
             active_page = page_name
-    if active_page == "Home":
-        home.render_home()
+
     # --- Main Content ---
     if active_page == "Home":
-        st.title("Amas Hypermarket: Data-Driven Strategy App")
-        st.write("""
-        **Welcome to the Amas Hypermarket Data-Driven Strategy App!**
-
-        This application outlines the current challenges and the roadmap for transforming Amas 
-        Hypermarket into a fully data-driven retail operation. Use the sidebar to navigate 
-        through various sections, where you'll find insights into the current situation, 
-        a future vision, and the phased implementation plan (Phase 1, Phase 2, and Phase 3), 
-        culminating in a roadmap for successful adoption.
-        """)
-        st.write("Below is a quick look at the data stored in `amas_data.csv` (for reference):")
-        df = pd.read_csv("amas_data.csv", sep=",")
-        st.dataframe(df)
+        # Call the render_home function to display the home page content
+        home.render_home()
 
     elif active_page == "Current Stage":
-        current.render_current_stage()  # Call the Current Stage function from current.py
+        # Display the Current Stage page
+        current.render_current_stage()
 
     elif active_page == "Vision":
-        vision.render_vision()  # Call the Vision function from vision.py
+        # Display the Vision page
+        vision.render_vision()
 
     elif active_page == "Phase 1":
         st.title("Phase 1")
