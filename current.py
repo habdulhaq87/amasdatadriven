@@ -1,13 +1,38 @@
 import streamlit as st
 import pandas as pd
+from PIL import Image, ExifTags
 
 # Mapping categories to images
 CATEGORY_IMAGES = {
     "Receiving & QC": "input/receiving.jpg",
     "Inventory Management": "input/inventory.jpg",
     "Selling the Items": "input/cashier.JPG",
-    "Post-Sale & Procurement": "input/post.JPG"
+    "Post-Sale & Procurement": "input/(22).JPG"
 }
+
+def correct_image_orientation(image_path):
+    """
+    Correct the orientation of an image using EXIF metadata.
+    Returns the corrected image.
+    """
+    try:
+        image = Image.open(image_path)
+        for orientation in ExifTags.TAGS.keys():
+            if ExifTags.TAGS[orientation] == 'Orientation':
+                break
+        exif = image._getexif()
+        if exif is not None:
+            orientation = exif.get(orientation, None)
+            if orientation == 3:
+                image = image.rotate(180, expand=True)
+            elif orientation == 6:
+                image = image.rotate(270, expand=True)
+            elif orientation == 8:
+                image = image.rotate(90, expand=True)
+        return image
+    except (AttributeError, KeyError, IndexError):
+        # If no EXIF data is found or an error occurs, return the image as is
+        return Image.open(image_path)
 
 def render_current_stage():
     # Title and Introduction
@@ -42,8 +67,9 @@ def render_current_stage():
         with col1:
             image_path = CATEGORY_IMAGES.get(cat, None)
             if image_path:
+                corrected_image = correct_image_orientation(image_path)
                 st.image(
-                    image_path,
+                    corrected_image,
                     caption=f"Current Stage: {cat}",
                     use_container_width=True
                 )
