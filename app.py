@@ -30,9 +30,16 @@ def main():
         if st.sidebar.button(page_name):
             active_page = page_name
 
-    # --- Main Content: Banner & Page Logic ---
-    # Reduce the size of the cover image with the 'width' parameter
-    st.image("input/cover.jpg", width=600)
+    # --- Main Content: Centered Cover Image & Page Logic ---
+    # Center-align the cover image
+    st.markdown(
+        """
+        <div style="text-align: center;">
+            <img src="input/cover.jpg" width="600" alt="Cover Image">
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
     if active_page == "Home":
         home.render_home()
