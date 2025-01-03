@@ -15,11 +15,11 @@ def render_phase1():
     This section outlines how AMAS Hypermarket can **move from the current situation** 
     to the **Phase 1** improvements. Two tabs are available below:
     - **Plan**: Detailed comparison of current vs. Phase 1 improvements.
-    - **Tasks & Roadmap**: Currently empty placeholders for tasks and roadmap items.
+    - **Tasks**: Placeholder for tasks related to Phase 1.
     """)
 
     # Create tabs
-    tab_plan, tab_tasks = st.tabs(["Plan", "Tasks & Roadmap"])
+    tab_plan, tab_tasks = st.tabs(["Plan", "Tasks"])
 
     # --- PLAN TAB ---
     with tab_plan:
@@ -101,11 +101,11 @@ def render_phase1():
         and preparing for scalable, data-driven growth.
         """)
 
-    # --- TASKS & ROADMAP TAB ---
+    # --- TASKS TAB ---
     with tab_tasks:
-        st.subheader("Tasks & Roadmap")
-        st.write("**Currently no tasks or roadmap items have been added.**")
-        st.info("Future enhancements to this tab will display tasks and a timeline for Phase 1.")
+        st.subheader("Tasks")
+        st.write("**Currently no tasks have been added for Phase 1.**")
+        st.info("Future updates will include task management for Phase 1.")
 
 if __name__ == "__main__":
     render_phase1()
