@@ -3,8 +3,6 @@ import vision
 import current  # Import the Current Stage module
 import home
 import phase1
-import roadmap
-
 def main():
     st.set_page_config(page_title="Amas Data-Driven Strategy", layout="wide")
 
@@ -18,7 +16,6 @@ def main():
         "Current Stage": "Current Stage",
         "Vision": "Vision",
         "Phase 1": "Phase 1",
-        "Roadmap": "Roadmap",
     }
 
     # Create buttons in the sidebar and update the active page
@@ -39,9 +36,6 @@ def main():
 
     elif active_page == "Phase 1":
         phase1.render_phase1()
-
-    elif active_page == "Roadmap":
-        roadmap.render_roadmap()
 
 if __name__ == "__main__":
     main()
