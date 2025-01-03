@@ -3,8 +3,9 @@ import pandas as pd
 from streamlit_lottie import st_lottie
 import json
 
-# Import the phase1_tasks module
+# Import the two modules for tasks & summary
 import phase1_tasks
+import phase1_summary
 
 def load_lottie_animation(filepath):
     """Load a Lottie animation from a JSON file."""
@@ -16,14 +17,16 @@ def render_phase1():
     st.title("Phase 1: Early & Doable Improvements")
     st.write("""
     This section outlines how AMAS Hypermarket can **move from the current situation** 
-    to the **Phase 1** improvements. Two tabs are available below:
+    to the **Phase 1** improvements. Three tabs are available below:
+    
     - **Plan**: Detailed comparison of current vs. Phase 1 improvements.
     - **Tasks**: Shows the relevant Phase 1 tasks, including Person in Charge, Deliverables, 
       timelines, budgets, and more.
+    - **Summary**: A high-level summary of Phase 1 activities, including timelines and budget.
     """)
 
-    # Create two tabs: Plan and Tasks
-    tab_plan, tab_tasks = st.tabs(["Plan", "Tasks"])
+    # Create three tabs: Plan, Tasks, Summary
+    tab_plan, tab_tasks, tab_summary = st.tabs(["Plan", "Tasks", "Summary"])
 
     # --- PLAN TAB ---
     with tab_plan:
@@ -112,9 +115,17 @@ def render_phase1():
         Below are the **Phase 1 tasks** from `amas_data.csv`, detailing who is responsible, 
         deliverables, start/end dates, budget, and more.
         """)
-
-        # Call the function from phase1_tasks module
         phase1_tasks.render_phase1_tasks()
+
+    # --- SUMMARY TAB ---
+    with tab_summary:
+        st.subheader("Phase 1 Summary")
+        st.write("""
+        Below is a **high-level summary** of Phase 1 activities, aggregated across 
+        categories, tasks, timelines, and budgets.
+        """)
+        phase1_summary.render_phase1_summary()
+
 
 if __name__ == "__main__":
     render_phase1()
