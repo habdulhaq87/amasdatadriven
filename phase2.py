@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 
 def render_phase2():
-    # Title and Introduction
     st.title("Phase 2: Extended Digitization & Standardization")
     st.write("""
     In **Phase 2**, AMAS Hypermarket builds upon the foundations established in **Phase 1**, 
@@ -12,15 +11,21 @@ def render_phase2():
 
     # Load Data
     df = pd.read_csv("amas_data.csv", sep=",")  # Update the path if needed
+    
+    # Check if 'Phase2' column exists
+    if "Phase2" not in df.columns:
+        st.warning("The CSV file does not contain a 'Phase2' column. Please add it or adapt your code.")
+        return
+
+    # Identify unique categories
     categories = df["Category"].unique()
 
     for i, cat in enumerate(categories):
         cat_data = df[df["Category"] == cat]
 
-        # Sub-header for each category
         st.markdown(f"## {cat} — Advancing from Phase 1 to Phase 2")
 
-        # Alternate the layout for variety:
+        # Alternate layout for variety:
         # Even index => image on the left, text on the right;
         # Odd index => reversed.
         if i % 2 == 0:
@@ -38,9 +43,9 @@ def render_phase2():
 
         with col_text:
             for _, row in cat_data.iterrows():
-                aspect_title = row["Aspect"]
-                phase1_improvement = row["Phase1"]   # What we achieved in Phase 1
-                phase2_improvement = row["Phase2"]   # Additional steps in Phase 2
+                aspect_title = row.get("Aspect", "N/A")
+                phase1_improvement = row.get("Phase1", "No Phase 1 data")
+                phase2_improvement = row.get("Phase2", "No Phase 2 data")
 
                 # Create an expander for each Aspect
                 with st.expander(f"**Aspect:** {aspect_title}"):
