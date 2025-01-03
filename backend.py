@@ -33,7 +33,6 @@ def get_file_sha_and_content(
         st.error(f"Failed to fetch {file_path} from GitHub: {response.status_code}")
         st.stop()
 
-
 def update_file_in_github(
     github_user: str,
     github_repo: str,
@@ -50,7 +49,6 @@ def update_file_in_github(
     url = f"https://api.github.com/repos/{github_user}/{github_repo}/contents/{file_path}"
     headers = {"Authorization": f"Bearer {github_pat}"}
 
-    # Convert the DataFrame back to CSV
     csv_str = new_df.to_csv(index=False)
     b64_content = base64.b64encode(csv_str.encode("utf-8")).decode("utf-8")
 
@@ -61,11 +59,10 @@ def update_file_in_github(
     }
 
     response = requests.put(url, headers=headers, data=json.dumps(payload))
-    if response.status_code == 200 or response.status_code == 201:
+    if response.status_code in [200, 201]:
         st.success("Your changes have been committed to GitHub!")
     else:
         st.error(f"Failed to update {file_path}: {response.status_code}\n{response.text}")
-
 
 def render_backend():
     st.set_page_config(page_title="AMAS Database Editor", layout="wide")
@@ -80,12 +77,13 @@ def render_backend():
     3. Use caution—saved changes cannot be undone from within this tool.
     """)
 
-    # Read secrets for GitHub credentials
+    # Use the secrets keys as you have them in your secrets.toml
     github_user = "habdulhaq87"
     github_repo = "amasdatadriven"
-    github_pat = st.secrets["github"]["PAT"]
+    # Lowercase 'pat' to match your secrets file
+    github_pat = st.secrets["github"]["pat"]  
 
-    file_path = "amas_data.csv"  # The path in your GitHub repo
+    file_path = "amas_data.csv"
 
     # Fetch the CSV content & SHA from GitHub
     sha, df = get_file_sha_and_content(
@@ -97,29 +95,76 @@ def render_backend():
 
     st.write("---")
     st.subheader("Edit Data")
-    today = datetime.date.today()
 
+    today = datetime.date.today()
     editable_rows = []
+
     for i, row in df.iterrows():
         with st.expander(f"Edit Row {i + 1}: {row.get('Aspect', 'N/A')}"):
-            # Safely parse or provide defaults for start/end dates:
-            start_date_val = pd.to_datetime(row.get("Phase1_Start Date", ""), errors="coerce").date() if not pd.isna(row.get("Phase1_Start Date", "")) else today
-            end_date_val = pd.to_datetime(row.get("Phase1_End Date", ""), errors="coerce").date() if not pd.isna(row.get("Phase1_End Date", "")) else today
+            start_date_val = pd.to_datetime(
+                row.get("Phase1_Start Date", ""), errors="coerce"
+            )
+            if pd.isna(start_date_val):
+                start_date_val = today
+            else:
+                start_date_val = start_date_val.date()
 
-            # Convert budget to float
-            budget_val = float(row.get("Phase1_Budget", 0.0)) if not pd.isna(row.get("Phase1_Budget", "")) else 0.0
+            end_date_val = pd.to_datetime(
+                row.get("Phase1_End Date", ""), errors="coerce"
+            )
+            if pd.isna(end_date_val):
+                end_date_val = today
+            else:
+                end_date_val = end_date_val.date()
+
+            budget_val = 0.0
+            try:
+                budget_val = float(row.get("Phase1_Budget", 0.0))
+            except:
+                budget_val = 0.0
 
             updated_row = {
-                "Category": st.text_input(f"Category (Row {i + 1})", row.get("Category", "")),
-                "Aspect": st.text_input(f"Aspect (Row {i + 1})", row.get("Aspect", "")),
-                "CurrentSituation": st.text_area(f"Current Situation (Row {i + 1})", row.get("CurrentSituation", "")),
-                "Phase1": st.text_area(f"Phase 1 (Row {i + 1})", row.get("Phase1", "")),
-                "Phase1_Person in Charge": st.text_input(f"Person in Charge (Row {i + 1})", row.get("Phase1_Person in Charge", "")),
-                "Phase1_Deliverable": st.text_input(f"Deliverable (Row {i + 1})", row.get("Phase1_Deliverable", "")),
-                "Phase1_Start Date": st.date_input(f"Start Date (Row {i + 1})", start_date_val),
-                "Phase1_End Date": st.date_input(f"End Date (Row {i + 1})", end_date_val),
-                "Phase1_Budget": st.number_input(f"Budget (Row {i + 1})", value=budget_val, step=100.0),
-                "Phase1_Charter": st.text_area(f"Charter (Row {i + 1})", row.get("Phase1_Charter", "")),
+                "Category": st.text_input(
+                    f"Category (Row {i + 1})",
+                    row.get("Category", "")
+                ),
+                "Aspect": st.text_input(
+                    f"Aspect (Row {i + 1})",
+                    row.get("Aspect", "")
+                ),
+                "CurrentSituation": st.text_area(
+                    f"Current Situation (Row {i + 1})",
+                    row.get("CurrentSituation", "")
+                ),
+                "Phase1": st.text_area(
+                    f"Phase 1 (Row {i + 1})",
+                    row.get("Phase1", "")
+                ),
+                "Phase1_Person in Charge": st.text_input(
+                    f"Person in Charge (Row {i + 1})",
+                    row.get("Phase1_Person in Charge", "")
+                ),
+                "Phase1_Deliverable": st.text_input(
+                    f"Deliverable (Row {i + 1})",
+                    row.get("Phase1_Deliverable", "")
+                ),
+                "Phase1_Start Date": st.date_input(
+                    f"Start Date (Row {i + 1})",
+                    start_date_val
+                ),
+                "Phase1_End Date": st.date_input(
+                    f"End Date (Row {i + 1})",
+                    end_date_val
+                ),
+                "Phase1_Budget": st.number_input(
+                    f"Budget (Row {i + 1})",
+                    value=budget_val,
+                    step=100.0
+                ),
+                "Phase1_Charter": st.text_area(
+                    f"Charter (Row {i + 1})",
+                    row.get("Phase1_Charter", "")
+                ),
             }
             editable_rows.append(updated_row)
 
@@ -127,6 +172,7 @@ def render_backend():
     if st.button("Save Changes"):
         updated_df = pd.DataFrame(editable_rows)
         commit_msg = f"Update CSV via Streamlit at {datetime.datetime.now()}"
+
         update_file_in_github(
             github_user=github_user,
             github_repo=github_repo,
@@ -136,7 +182,6 @@ def render_backend():
             old_sha=sha,
             commit_message=commit_msg
         )
-
 
 if __name__ == "__main__":
     render_backend()
