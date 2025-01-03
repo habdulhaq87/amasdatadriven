@@ -1,43 +1,114 @@
+import base64
+import datetime
+import json
+import os
+import requests
 import streamlit as st
 import pandas as pd
-import datetime
+
+def get_file_sha_and_content(
+    github_user: str,
+    github_repo: str,
+    github_pat: str,
+    file_path: str,
+) -> (str, pd.DataFrame):
+    """
+    Retrieve the SHA and content of a file (CSV) in GitHub via REST API,
+    decode the base64 content, and return as a DataFrame.
+    """
+    url = f"https://api.github.com/repos/{github_user}/{github_repo}/contents/{file_path}"
+    headers = {"Authorization": f"Bearer {github_pat}"}
+
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        data = response.json()
+        sha = data["sha"]
+
+        # Decode base64 content and parse CSV into DataFrame
+        content_str = base64.b64decode(data["content"]).decode("utf-8")
+        df = pd.read_csv(
+            pd.compat.StringIO(content_str),
+            sep=","
+        )
+        return sha, df
+    else:
+        st.error(f"Failed to fetch {file_path} from GitHub: {response.status_code}")
+        st.stop()
+
+
+def update_file_in_github(
+    github_user: str,
+    github_repo: str,
+    github_pat: str,
+    file_path: str,
+    new_df: pd.DataFrame,
+    old_sha: str,
+    commit_message: str = "Update CSV via Streamlit backend.py",
+):
+    """
+    Commit changes back to GitHub by encoding the updated CSV in base64,
+    then sending a PUT request to the GitHub REST API.
+    """
+    url = f"https://api.github.com/repos/{github_user}/{github_repo}/contents/{file_path}"
+    headers = {"Authorization": f"Bearer {github_pat}"}
+
+    # Convert the DataFrame back to CSV
+    csv_str = new_df.to_csv(index=False)
+    b64_content = base64.b64encode(csv_str.encode("utf-8")).decode("utf-8")
+
+    payload = {
+        "message": commit_message,
+        "content": b64_content,
+        "sha": old_sha,
+    }
+
+    response = requests.put(url, headers=headers, data=json.dumps(payload))
+    if response.status_code == 200 or response.status_code == 201:
+        st.success("Your changes have been committed to GitHub!")
+    else:
+        st.error(f"Failed to update {file_path}: {response.status_code}\n{response.text}")
+
 
 def render_backend():
+    st.set_page_config(page_title="AMAS Database Editor", layout="wide")
     st.title("Database Editor: AMAS Data Management")
 
     st.write("""
     **Welcome to the AMAS Data Editor!**  
-    Here, you can **view, modify, and save** changes to your `amas_data.csv` file.  
+    Here, you can **view, modify, and save** changes to your `amas_data.csv` file **on GitHub**.  
     **Instructions**:
     1. Make changes to the table below using the provided fields.
-    2. Click **"Save Changes"** to write all modifications back to the CSV.
+    2. Click **"Save Changes"** to commit modifications directly back to GitHub.
     3. Use caution—saved changes cannot be undone from within this tool.
     """)
 
-    # Load the existing CSV data
-    try:
-        df = pd.read_csv("amas_data.csv")
-    except FileNotFoundError:
-        st.error("`amas_data.csv` not found. Please ensure it exists in the app directory.")
-        return
+    # Read secrets for GitHub credentials
+    github_user = st.secrets["github"]["username"]
+    github_repo = st.secrets["github"]["repository"]
+    github_pat = st.secrets["github"]["pat"]
 
-    # Display current dataset
+    file_path = "amas_data.csv"  # The path in your GitHub repo
+
+    # 1. Fetch the CSV content & SHA from GitHub
+    sha, df = get_file_sha_and_content(
+        github_user, github_repo, github_pat, file_path
+    )
+
     st.subheader("Current Dataset")
     st.dataframe(df, use_container_width=True)
 
-    # Editable section for rows
     st.write("---")
     st.subheader("Edit Data")
-    editable_rows = []
     today = datetime.date.today()
 
+    editable_rows = []
     for i, row in df.iterrows():
         with st.expander(f"Edit Row {i + 1}: {row.get('Aspect', 'N/A')}"):
             # Safely parse or provide defaults for start/end dates:
             try:
                 start_date_val = pd.to_datetime(row.get("Phase1_Start Date", ""), errors="coerce")
                 if pd.isna(start_date_val):
-                    start_date_val = today  # fallback if NaT or invalid
+                    start_date_val = today
                 else:
                     start_date_val = start_date_val.date()
             except:
@@ -52,12 +123,13 @@ def render_backend():
             except:
                 end_date_val = today
 
-            # Convert budget to float safely
+            # Convert budget to float
             try:
                 budget_val = float(row.get("Phase1_Budget", 0.0))
             except:
                 budget_val = 0.0
 
+            # Construct updated row from user inputs
             updated_row = {
                 "Category": st.text_input(
                     f"Category (Row {i + 1})",
@@ -83,7 +155,6 @@ def render_backend():
                     f"Deliverable (Row {i + 1})",
                     row.get("Phase1_Deliverable", "")
                 ),
-                # Use fallback date if needed
                 "Phase1_Start Date": st.date_input(
                     f"Start Date (Row {i + 1})",
                     start_date_val
@@ -104,15 +175,22 @@ def render_backend():
             }
             editable_rows.append(updated_row)
 
-    # Save changes
+    # 2. Save changes & commit to GitHub
     if st.button("Save Changes"):
         updated_df = pd.DataFrame(editable_rows)
-        updated_df.to_csv("amas_data.csv", index=False)
-        st.success("Your changes have been saved to `amas_data.csv`!")
+        commit_msg = f"Update CSV via Streamlit at {datetime.datetime.now()}"
 
-def main():
-    st.set_page_config(page_title="AMAS Database Editor", layout="wide")
-    render_backend()
+        # Attempt to push changes to GitHub
+        update_file_in_github(
+            github_user=github_user,
+            github_repo=github_repo,
+            github_pat=github_pat,
+            file_path=file_path,
+            new_df=updated_df,
+            old_sha=sha,
+            commit_message=commit_msg
+        )
+
 
 if __name__ == "__main__":
-    main()
+    render_backend()
