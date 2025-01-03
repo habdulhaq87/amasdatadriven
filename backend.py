@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import datetime
 
 def render_backend():
     st.title("Database Editor: AMAS Data Management")
@@ -28,19 +29,78 @@ def render_backend():
     st.write("---")
     st.subheader("Edit Data")
     editable_rows = []
+    today = datetime.date.today()
+
     for i, row in df.iterrows():
-        with st.expander(f"Edit Row {i + 1}: {row['Aspect']}"):
+        with st.expander(f"Edit Row {i + 1}: {row.get('Aspect', 'N/A')}"):
+            # Safely parse or provide defaults for start/end dates:
+            try:
+                start_date_val = pd.to_datetime(row.get("Phase1_Start Date", ""), errors="coerce")
+                if pd.isna(start_date_val):
+                    start_date_val = today  # fallback if NaT or invalid
+                else:
+                    start_date_val = start_date_val.date()
+            except:
+                start_date_val = today
+
+            try:
+                end_date_val = pd.to_datetime(row.get("Phase1_End Date", ""), errors="coerce")
+                if pd.isna(end_date_val):
+                    end_date_val = today
+                else:
+                    end_date_val = end_date_val.date()
+            except:
+                end_date_val = today
+
+            # Convert budget to float safely
+            try:
+                budget_val = float(row.get("Phase1_Budget", 0.0))
+            except:
+                budget_val = 0.0
+
             updated_row = {
-                "Category": st.text_input(f"Category (Row {i + 1})", row["Category"]),
-                "Aspect": st.text_input(f"Aspect (Row {i + 1})", row["Aspect"]),
-                "CurrentSituation": st.text_area(f"Current Situation (Row {i + 1})", row["CurrentSituation"]),
-                "Phase1": st.text_area(f"Phase 1 (Row {i + 1})", row["Phase1"]),
-                "Phase1_Person in Charge": st.text_input(f"Person in Charge (Row {i + 1})", row["Phase1_Person in Charge"]),
-                "Phase1_Deliverable": st.text_input(f"Deliverable (Row {i + 1})", row["Phase1_Deliverable"]),
-                "Phase1_Start Date": st.date_input(f"Start Date (Row {i + 1})", pd.to_datetime(row["Phase1_Start Date"], errors="coerce")),
-                "Phase1_End Date": st.date_input(f"End Date (Row {i + 1})", pd.to_datetime(row["Phase1_End Date"], errors="coerce")),
-                "Phase1_Budget": st.number_input(f"Budget (Row {i + 1})", value=float(row["Phase1_Budget"]) if pd.notnull(row["Phase1_Budget"]) else 0.0),
-                "Phase1_Charter": st.text_area(f"Charter (Row {i + 1})", row["Phase1_Charter"]),
+                "Category": st.text_input(
+                    f"Category (Row {i + 1})",
+                    row.get("Category", "")
+                ),
+                "Aspect": st.text_input(
+                    f"Aspect (Row {i + 1})",
+                    row.get("Aspect", "")
+                ),
+                "CurrentSituation": st.text_area(
+                    f"Current Situation (Row {i + 1})",
+                    row.get("CurrentSituation", "")
+                ),
+                "Phase1": st.text_area(
+                    f"Phase 1 (Row {i + 1})",
+                    row.get("Phase1", "")
+                ),
+                "Phase1_Person in Charge": st.text_input(
+                    f"Person in Charge (Row {i + 1})",
+                    row.get("Phase1_Person in Charge", "")
+                ),
+                "Phase1_Deliverable": st.text_input(
+                    f"Deliverable (Row {i + 1})",
+                    row.get("Phase1_Deliverable", "")
+                ),
+                # Use fallback date if needed
+                "Phase1_Start Date": st.date_input(
+                    f"Start Date (Row {i + 1})",
+                    start_date_val
+                ),
+                "Phase1_End Date": st.date_input(
+                    f"End Date (Row {i + 1})",
+                    end_date_val
+                ),
+                "Phase1_Budget": st.number_input(
+                    f"Budget (Row {i + 1})",
+                    value=budget_val,
+                    step=100.0
+                ),
+                "Phase1_Charter": st.text_area(
+                    f"Charter (Row {i + 1})",
+                    row.get("Phase1_Charter", "")
+                ),
             }
             editable_rows.append(updated_row)
 
