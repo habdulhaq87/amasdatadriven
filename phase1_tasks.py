@@ -4,7 +4,8 @@ import pandas as pd
 def render_phase1_tasks():
     """
     Displays the Phase 1 tasks for each category/aspect,
-    including Person in Charge, Deliverable, Start/End Dates, Budget, and Charter.
+    including Person in Charge, Deliverable, Start/End Dates, Budget, and Charter,
+    with an enhanced UI.
     """
 
     st.title("Phase 1: Tasks")
@@ -36,47 +37,46 @@ def render_phase1_tasks():
     categories = df["Category"].unique()
 
     for cat in categories:
-        # Filter rows for this category
         cat_data = df[df["Category"] == cat]
 
-        # If there are no tasks for this category in Phase 1 (check person in charge or deliverables?), 
-        # we can still display it if desired, or skip if there's no relevant data.
-        # We'll display any aspect that has a Phase1_Person in Charge (even if empty).
+        # Section header for each Category
         st.markdown(f"## {cat} — Phase 1 Tasks")
 
+        # Iterate over each row (Aspect) within this Category
         for _, row in cat_data.iterrows():
             aspect_title = row["Aspect"]
+            # Retrieve Phase 1 columns
+            person_in_charge = row["Phase1_Person in Charge"]
+            deliverable = row["Phase1_Deliverable"]
+            start_date = row["Phase1_Start Date"]
+            end_date = row["Phase1_End Date"]
+            budget = row["Phase1_Budget"]
+            charter = row["Phase1_Charter"]
 
-            # Build expander for each aspect's tasks
-            with st.expander(f"**{aspect_title}**"):
-                person_in_charge = row["Phase1_Person in Charge"]
-                deliverable = row["Phase1_Deliverable"]
-                start_date = row["Phase1_Start Date"]
-                end_date = row["Phase1_End Date"]
-                budget = row["Phase1_Budget"]
-                charter = row["Phase1_Charter"]
+            # We only show the expander if there's an Aspect name
+            with st.expander(f"**{aspect_title}**", expanded=False):
+                # We'll create a two-column layout for clarity
+                col1, col2 = st.columns([1, 1])
 
-                # Layout columns or just display each field with markdown
-                col1, col2 = st.columns(2)
                 with col1:
-                    st.markdown("**Person in Charge**")
-                    st.write(person_in_charge if pd.notnull(person_in_charge) else "N/A")
+                    st.markdown(f"**:bust_in_silhouette: Person in Charge**")
+                    st.markdown(person_in_charge if pd.notnull(person_in_charge) else "N/A")
 
-                    st.markdown("**Deliverable**")
-                    st.write(deliverable if pd.notnull(deliverable) else "N/A")
+                    st.markdown(f"**:dart: Deliverable**")
+                    st.markdown(deliverable if pd.notnull(deliverable) else "N/A")
 
-                    st.markdown("**Start Date**")
-                    st.write(start_date if pd.notnull(start_date) else "N/A")
+                    st.markdown(f"**:date: Start Date**")
+                    st.markdown(start_date if pd.notnull(start_date) else "N/A")
 
                 with col2:
-                    st.markdown("**End Date**")
-                    st.write(end_date if pd.notnull(end_date) else "N/A")
+                    st.markdown(f"**:hourglass_flowing_sand: End Date**")
+                    st.markdown(end_date if pd.notnull(end_date) else "N/A")
 
-                    st.markdown("**Budget**")
-                    st.write(budget if pd.notnull(budget) else "N/A")
+                    st.markdown(f"**:moneybag: Budget**")
+                    st.markdown(budget if pd.notnull(budget) else "N/A")
 
-                    st.markdown("**Charter**")
-                    st.write(charter if pd.notnull(charter) else "N/A")
+                    st.markdown(f"**:scroll: Charter**")
+                    st.markdown(charter if pd.notnull(charter) else "N/A")
 
         st.write("---")
 
