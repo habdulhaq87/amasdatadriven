@@ -1,7 +1,7 @@
 import base64
 import datetime
+import io
 import json
-import os
 import requests
 import streamlit as st
 import pandas as pd
@@ -26,10 +26,8 @@ def get_file_sha_and_content(
 
         # Decode base64 content and parse CSV into DataFrame
         content_str = base64.b64decode(data["content"]).decode("utf-8")
-        df = pd.read_csv(
-            pd.compat.StringIO(content_str),
-            sep=","
-        )
+        csv_buffer = io.StringIO(content_str)
+        df = pd.read_csv(csv_buffer, sep=",")
         return sha, df
     else:
         st.error(f"Failed to fetch {file_path} from GitHub: {response.status_code}")
@@ -83,13 +81,13 @@ def render_backend():
     """)
 
     # Read secrets for GitHub credentials
-    github_user = st.secrets["github"]["username"]
-    github_repo = st.secrets["github"]["repository"]
-    github_pat = st.secrets["github"]["pat"]
+    github_user = "habdulhaq87"
+    github_repo = "amasdatadriven"
+    github_pat = st.secrets["github"]["PAT"]
 
     file_path = "amas_data.csv"  # The path in your GitHub repo
 
-    # 1. Fetch the CSV content & SHA from GitHub
+    # Fetch the CSV content & SHA from GitHub
     sha, df = get_file_sha_and_content(
         github_user, github_repo, github_pat, file_path
     )
@@ -105,82 +103,30 @@ def render_backend():
     for i, row in df.iterrows():
         with st.expander(f"Edit Row {i + 1}: {row.get('Aspect', 'N/A')}"):
             # Safely parse or provide defaults for start/end dates:
-            try:
-                start_date_val = pd.to_datetime(row.get("Phase1_Start Date", ""), errors="coerce")
-                if pd.isna(start_date_val):
-                    start_date_val = today
-                else:
-                    start_date_val = start_date_val.date()
-            except:
-                start_date_val = today
-
-            try:
-                end_date_val = pd.to_datetime(row.get("Phase1_End Date", ""), errors="coerce")
-                if pd.isna(end_date_val):
-                    end_date_val = today
-                else:
-                    end_date_val = end_date_val.date()
-            except:
-                end_date_val = today
+            start_date_val = pd.to_datetime(row.get("Phase1_Start Date", ""), errors="coerce").date() if not pd.isna(row.get("Phase1_Start Date", "")) else today
+            end_date_val = pd.to_datetime(row.get("Phase1_End Date", ""), errors="coerce").date() if not pd.isna(row.get("Phase1_End Date", "")) else today
 
             # Convert budget to float
-            try:
-                budget_val = float(row.get("Phase1_Budget", 0.0))
-            except:
-                budget_val = 0.0
+            budget_val = float(row.get("Phase1_Budget", 0.0)) if not pd.isna(row.get("Phase1_Budget", "")) else 0.0
 
-            # Construct updated row from user inputs
             updated_row = {
-                "Category": st.text_input(
-                    f"Category (Row {i + 1})",
-                    row.get("Category", "")
-                ),
-                "Aspect": st.text_input(
-                    f"Aspect (Row {i + 1})",
-                    row.get("Aspect", "")
-                ),
-                "CurrentSituation": st.text_area(
-                    f"Current Situation (Row {i + 1})",
-                    row.get("CurrentSituation", "")
-                ),
-                "Phase1": st.text_area(
-                    f"Phase 1 (Row {i + 1})",
-                    row.get("Phase1", "")
-                ),
-                "Phase1_Person in Charge": st.text_input(
-                    f"Person in Charge (Row {i + 1})",
-                    row.get("Phase1_Person in Charge", "")
-                ),
-                "Phase1_Deliverable": st.text_input(
-                    f"Deliverable (Row {i + 1})",
-                    row.get("Phase1_Deliverable", "")
-                ),
-                "Phase1_Start Date": st.date_input(
-                    f"Start Date (Row {i + 1})",
-                    start_date_val
-                ),
-                "Phase1_End Date": st.date_input(
-                    f"End Date (Row {i + 1})",
-                    end_date_val
-                ),
-                "Phase1_Budget": st.number_input(
-                    f"Budget (Row {i + 1})",
-                    value=budget_val,
-                    step=100.0
-                ),
-                "Phase1_Charter": st.text_area(
-                    f"Charter (Row {i + 1})",
-                    row.get("Phase1_Charter", "")
-                ),
+                "Category": st.text_input(f"Category (Row {i + 1})", row.get("Category", "")),
+                "Aspect": st.text_input(f"Aspect (Row {i + 1})", row.get("Aspect", "")),
+                "CurrentSituation": st.text_area(f"Current Situation (Row {i + 1})", row.get("CurrentSituation", "")),
+                "Phase1": st.text_area(f"Phase 1 (Row {i + 1})", row.get("Phase1", "")),
+                "Phase1_Person in Charge": st.text_input(f"Person in Charge (Row {i + 1})", row.get("Phase1_Person in Charge", "")),
+                "Phase1_Deliverable": st.text_input(f"Deliverable (Row {i + 1})", row.get("Phase1_Deliverable", "")),
+                "Phase1_Start Date": st.date_input(f"Start Date (Row {i + 1})", start_date_val),
+                "Phase1_End Date": st.date_input(f"End Date (Row {i + 1})", end_date_val),
+                "Phase1_Budget": st.number_input(f"Budget (Row {i + 1})", value=budget_val, step=100.0),
+                "Phase1_Charter": st.text_area(f"Charter (Row {i + 1})", row.get("Phase1_Charter", "")),
             }
             editable_rows.append(updated_row)
 
-    # 2. Save changes & commit to GitHub
+    # Save changes & commit to GitHub
     if st.button("Save Changes"):
         updated_df = pd.DataFrame(editable_rows)
         commit_msg = f"Update CSV via Streamlit at {datetime.datetime.now()}"
-
-        # Attempt to push changes to GitHub
         update_file_in_github(
             github_user=github_user,
             github_repo=github_repo,
