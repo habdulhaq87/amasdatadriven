@@ -8,7 +8,7 @@ def render_backend():
     **Welcome to the AMAS Data Editor!**  
     Here, you can **view, modify, and save** changes to your `amas_data.csv` file.  
     **Instructions**:
-    1. Make any changes directly in the interactive table below.
+    1. Make changes to the table below using the provided fields.
     2. Click **"Save Changes"** to write all modifications back to the CSV.
     3. Use caution—saved changes cannot be undone from within this tool.
     """)
@@ -20,22 +20,34 @@ def render_backend():
         st.error("`amas_data.csv` not found. Please ensure it exists in the app directory.")
         return
 
-    # Display editable data editor
-    st.subheader("Editable Data")
-    st.info("You can double-click cells to edit them. Scroll horizontally for additional fields.")
+    # Display current dataset
+    st.subheader("Current Dataset")
+    st.dataframe(df, use_container_width=True)
 
-    edited_df = st.experimental_data_editor(
-        df, 
-        num_rows="dynamic",  # allows adding new rows
-        use_container_width=True
-    )
-
+    # Editable section for rows
     st.write("---")
+    st.subheader("Edit Data")
+    editable_rows = []
+    for i, row in df.iterrows():
+        with st.expander(f"Edit Row {i + 1}: {row['Aspect']}"):
+            updated_row = {
+                "Category": st.text_input(f"Category (Row {i + 1})", row["Category"]),
+                "Aspect": st.text_input(f"Aspect (Row {i + 1})", row["Aspect"]),
+                "CurrentSituation": st.text_area(f"Current Situation (Row {i + 1})", row["CurrentSituation"]),
+                "Phase1": st.text_area(f"Phase 1 (Row {i + 1})", row["Phase1"]),
+                "Phase1_Person in Charge": st.text_input(f"Person in Charge (Row {i + 1})", row["Phase1_Person in Charge"]),
+                "Phase1_Deliverable": st.text_input(f"Deliverable (Row {i + 1})", row["Phase1_Deliverable"]),
+                "Phase1_Start Date": st.date_input(f"Start Date (Row {i + 1})", pd.to_datetime(row["Phase1_Start Date"], errors="coerce")),
+                "Phase1_End Date": st.date_input(f"End Date (Row {i + 1})", pd.to_datetime(row["Phase1_End Date"], errors="coerce")),
+                "Phase1_Budget": st.number_input(f"Budget (Row {i + 1})", value=float(row["Phase1_Budget"]) if pd.notnull(row["Phase1_Budget"]) else 0.0),
+                "Phase1_Charter": st.text_area(f"Charter (Row {i + 1})", row["Phase1_Charter"]),
+            }
+            editable_rows.append(updated_row)
 
-    # Save button
+    # Save changes
     if st.button("Save Changes"):
-        # Write the updated dataframe to CSV
-        edited_df.to_csv("amas_data.csv", index=False)
+        updated_df = pd.DataFrame(editable_rows)
+        updated_df.to_csv("amas_data.csv", index=False)
         st.success("Your changes have been saved to `amas_data.csv`!")
 
 def main():
