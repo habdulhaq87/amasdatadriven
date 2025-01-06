@@ -3,12 +3,14 @@ import vision
 import current  # Import the Current Stage module
 import home
 import phase1
+
 def main():
     st.set_page_config(page_title="Amas Data-Driven Strategy", layout="wide")
 
     # --- Sidebar: Logo & Navigation ---
     st.sidebar.image("input/logo.jpg", use_container_width=True)
     st.sidebar.title("Navigation")
+    st.sidebar.markdown("### AMAS's Data-Driven Strategy for 2025")  # Added header to sidebar
 
     # Remove references to Phase 2 and Phase 3
     pages = {
