@@ -27,6 +27,3 @@ def render_report():
         [📄 **View Full Report**](https://docs.google.com/document/d/1RmrlmdwNbBSVWaDItfdf65bSJTIrlg29o56KmKywdto/edit?usp=sharing)
         """
     )
-
-    # Add a button for future functionality
-    st.button("Download Full Report (Coming Soon)")
