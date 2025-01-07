@@ -8,8 +8,8 @@ def render_report():
     # Add a placeholder for the report cover
     st.markdown("### Report Cover")
 
-    # Display the report cover image
-    st.image("input/report.jpg", caption="AMAS Hypermarket - Data-Driven Strategy for 2025", use_column_width=True)
+    # Display the report cover image with reduced size
+    st.image("input/report.jpg", caption="AMAS Hypermarket - Data-Driven Strategy for 2025", width=400)
 
     # Add a description below the cover
     st.markdown(
