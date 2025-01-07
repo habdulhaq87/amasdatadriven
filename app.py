@@ -3,6 +3,7 @@ import vision
 import current  # Import the Current Stage module
 import home
 import phase1
+import report  # Import the temporary Report module
 
 def main():
     st.set_page_config(page_title="Amas Data-Driven Strategy", layout="wide")
@@ -12,12 +13,13 @@ def main():
     st.sidebar.title("Navigation")
     st.sidebar.markdown("### AMAS's Data-Driven Strategy for 2025")  # Added header to sidebar
 
-    # Remove references to Phase 2 and Phase 3
+    # Updated pages to include "Report"
     pages = {
         "Home": "Home",
         "Current Stage": "Current Stage",
         "Vision": "Vision",
         "Phase 1": "Phase 1",
+        "Report": "Report",  # New entry
     }
 
     # Create buttons in the sidebar and update the active page
@@ -38,6 +40,9 @@ def main():
 
     elif active_page == "Phase 1":
         phase1.render_phase1()
+
+    elif active_page == "Report":
+        report.render_report()  # Call the report module
 
 if __name__ == "__main__":
     main()
