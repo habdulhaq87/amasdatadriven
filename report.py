@@ -11,6 +11,10 @@ def render_report():
     # Display the report cover image with reduced size
     st.image("input/report.jpg", caption="AMAS Hypermarket - Data-Driven Strategy for 2025", width=400)
 
+    # Add a hoverable feature using a button or click
+    if st.button("View High-Quality Cover"):
+        st.image("input/report.jpg", caption="High-Quality Cover", use_column_width=True)
+
     # Add a description below the cover
     st.markdown(
         """
