@@ -5,15 +5,39 @@ def render_report():
     st.title("AMAS Data-Driven Strategy Report")
     st.subheader("A Comprehensive Approach to Transforming Operations in 2025")
 
-    # Add a placeholder for the report cover
-    st.markdown("### Report Cover")
+    # Add custom hover effect for the report cover
+    st.markdown(
+        """
+        <style>
+        .image-container {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+        }
 
-    # Display the report cover image with reduced size
-    st.image("input/report.jpg", caption="AMAS Hypermarket - Data-Driven Strategy for 2025", width=400)
+        .image-container img {
+            width: 400px;
+            transition: transform 0.3s ease;
+        }
 
-    # Add a hoverable feature using a button or click
-    if st.button("View High-Quality Cover"):
-        st.image("input/report.jpg", caption="High-Quality Cover", use_column_width=True)
+        .image-container:hover img {
+            transform: scale(1.5);
+            z-index: 10;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # Add the image with hover effect
+    st.markdown(
+        """
+        <div class="image-container">
+            <img src="input/report.jpg" alt="AMAS Hypermarket - Data-Driven Strategy for 2025">
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     # Add a description below the cover
     st.markdown(
