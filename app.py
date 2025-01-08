@@ -10,7 +10,7 @@ def main():
 
     # --- Access Code Authentication ---
     # Define the access code
-    ACCESS_CODE = "secure2025"
+    ACCESS_CODE = "2505"
 
     # Create an input box for the user to enter the access code
     st.sidebar.markdown("## Enter Access Code")
