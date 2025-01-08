@@ -10,16 +10,23 @@ def main():
 
     # --- Access Code Authentication ---
     # Define the access code
-    ACCESS_CODE = "2505"
+    ACCESS_CODE = "secure2025"
 
-    # Create an input box for the user to enter the access code
-    st.sidebar.markdown("## Enter Access Code")
-    user_code = st.sidebar.text_input("Access Code", type="password")
+    # Use session state to track if the user is authenticated
+    if "authenticated" not in st.session_state:
+        st.session_state.authenticated = False
 
-    # Check if the access code is correct
-    if user_code != ACCESS_CODE:
-        st.sidebar.error("Invalid access code. Please try again.")
-        st.stop()  # Stop the app if the code is incorrect
+    # If not authenticated, show the access code input
+    if not st.session_state.authenticated:
+        st.sidebar.markdown("## Enter Access Code")
+        user_code = st.sidebar.text_input("Access Code", type="password")
+
+        if user_code == ACCESS_CODE:
+            st.session_state.authenticated = True  # Set authenticated to True
+            st.sidebar.success("Access granted!")
+        else:
+            st.sidebar.error("Invalid access code. Please try again.")
+            st.stop()  # Stop the app if the code is incorrect
 
     # --- Sidebar: Logo & Navigation ---
     st.sidebar.image("input/logo.jpg", use_container_width=True)
