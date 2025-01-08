@@ -10,7 +10,7 @@ def main():
 
     # --- Access Code Authentication ---
     # Define the access code
-    ACCESS_CODE = "secure2025"
+    ACCESS_CODE = "2025"
 
     # Use session state to track if the user is authenticated
     if "authenticated" not in st.session_state:
