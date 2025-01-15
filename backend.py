@@ -3,6 +3,7 @@ import datetime
 import io
 import json
 import requests
+import sqlite3
 import streamlit as st
 import pandas as pd
 
@@ -28,8 +29,96 @@ def get_file_sha_and_content(
         st.error(f"Failed to fetch {file_path} from GitHub: {response.status_code}")
         st.stop()
 
+# Function to upload a file to GitHub
+def upload_file_to_github(
+    github_user: str,
+    github_repo: str,
+    github_pat: str,
+    file_path: str,
+    local_file_path: str,
+    commit_message: str,
+):
+    url = f"https://api.github.com/repos/{github_user}/{github_repo}/contents/{file_path}"
+    headers = {"Authorization": f"Bearer {github_pat}"}
+
+    with open(local_file_path, "rb") as file:
+        content = file.read()
+
+    b64_content = base64.b64encode(content).decode("utf-8")
+
+    # Get the current SHA of the file (if it exists)
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        sha = response.json()["sha"]
+    else:
+        sha = None
+
+    payload = {
+        "message": commit_message,
+        "content": b64_content,
+        "sha": sha,
+    }
+
+    response = requests.put(url, headers=headers, data=json.dumps(payload))
+    if response.status_code in [200, 201]:
+        st.success("Database successfully pushed to GitHub.")
+    else:
+        st.error(f"Failed to upload file to GitHub: {response.status_code}\n{response.text}")
+
+# Function to initialize SQLite database
+def initialize_database():
+    conn = sqlite3.connect("subtasks.db")
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS subtasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            category TEXT,
+            aspect TEXT,
+            current_situation TEXT,
+            name TEXT,
+            detail TEXT,
+            start_time TEXT,
+            outcome TEXT,
+            person_involved TEXT,
+            budget REAL,
+            deadline TEXT,
+            progress INTEGER
+        )
+        """
+    )
+    conn.commit()
+    return conn
+
+# Function to save subtasks to SQLite database
+def save_subtasks_to_db(conn, subtasks):
+    cursor = conn.cursor()
+    for subtask in subtasks:
+        cursor.execute(
+            """
+            INSERT INTO subtasks (
+                category, aspect, current_situation, name, detail,
+                start_time, outcome, person_involved, budget, deadline, progress
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                subtask["Category"],
+                subtask["Aspect"],
+                subtask["CurrentSituation"],
+                subtask["Name"],
+                subtask["Detail"],
+                subtask["StartTime"].isoformat() if subtask["StartTime"] else None,
+                subtask["Outcome"],
+                subtask["PersonInvolved"],
+                subtask["Budget"],
+                subtask["Deadline"].isoformat() if subtask["Deadline"] else None,
+                subtask["Progress"],
+            ),
+        )
+    conn.commit()
+
 # Function to render each page
-def render_page(df, page_name):
+def render_page(df, page_name, conn, github_user, github_repo, github_pat):
     if page_name == "Home":
         st.title("Home Page")
         st.write("Welcome to the AMAS Data Management System!")
@@ -95,8 +184,15 @@ def render_page(df, page_name):
                     subtasks.append(subtask)
 
             if st.button(f"Save Subtasks for {page_name}"):
-                # Handle saving subtasks
-                st.success(f"Subtasks for {page_name} saved successfully.")
+                save_subtasks_to_db(conn, subtasks)
+                upload_file_to_github(
+                    github_user,
+                    github_repo,
+                    github_pat,
+                    "subtasks.db",
+                    "subtasks.db",
+                    f"Update subtasks for {page_name} at {datetime.datetime.now()}"
+                )
 
 # Main function
 def render_backend():
@@ -111,6 +207,9 @@ def render_backend():
 
     sha, df = get_file_sha_and_content(github_user, github_repo, github_pat, file_path)
 
+    # Initialize SQLite database
+    conn = initialize_database()
+
     # Dynamically populate the sidebar
     pages = ["Home"] + df["Aspect"].dropna().unique().tolist()
 
@@ -124,7 +223,7 @@ def render_backend():
             st.session_state.current_page = page
 
     # Render the currently selected page
-    render_page(df, st.session_state.current_page)
+    render_page(df, st.session_state.current_page, conn, github_user, github_repo, github_pat)
 
 if __name__ == "__main__":
     render_backend()
