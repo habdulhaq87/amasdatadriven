@@ -36,7 +36,7 @@ def render_page(df, page_name):
         st.dataframe(df)
     else:
         st.title(f"Details for: {page_name}")
-        tabs = st.tabs(["View", "Edit"])
+        tabs = st.tabs(["View", "Edit", "Subtasks"])
 
         # Filter row data for the selected Aspect
         row_data = df[df["Aspect"] == page_name].iloc[0]
@@ -58,6 +58,45 @@ def render_page(df, page_name):
                 # Update the DataFrame with the edited data
                 df.update(pd.DataFrame([editable_data]))
                 st.success("Changes saved. Be sure to commit changes to GitHub.")
+
+        # Subtasks Tab
+        with tabs[2]:
+            st.subheader("Subtasks")
+
+            subtasks = []
+            for i in range(1, 6):
+                with st.expander(f"Subtask {i}"):
+                    category = st.text_input(f"Category of Task {i}", key=f"cat_{i}")
+                    aspect = st.text_input(f"Aspect of Task {i}", key=f"asp_{i}")
+                    current_situation = st.text_area(f"Current Situation of Task {i}", key=f"cs_{i}")
+                    name = st.text_input(f"Name of Task {i}", key=f"name_{i}")
+                    detail = st.text_area(f"Detail of Task {i}", key=f"detail_{i}")
+                    start_time = st.date_input(f"Start Time of Task {i}", key=f"start_{i}")
+                    outcome = st.text_area(f"Outcome of Task {i}", key=f"outcome_{i}")
+                    person_involved = st.text_input(f"Person Involved in Task {i}", key=f"person_{i}")
+                    budget = st.number_input(f"Budget of Task {i}", key=f"budget_{i}", step=100.0)
+                    deadline = st.date_input(f"Deadline of Task {i}", key=f"deadline_{i}")
+                    progress = st.slider(f"Progress of Task {i} (%)", 0, 100, key=f"progress_{i}")
+
+                    # Collecting subtask data
+                    subtask = {
+                        "Category": category,
+                        "Aspect": aspect,
+                        "CurrentSituation": current_situation,
+                        "Name": name,
+                        "Detail": detail,
+                        "StartTime": start_time,
+                        "Outcome": outcome,
+                        "PersonInvolved": person_involved,
+                        "Budget": budget,
+                        "Deadline": deadline,
+                        "Progress": progress,
+                    }
+                    subtasks.append(subtask)
+
+            if st.button(f"Save Subtasks for {page_name}"):
+                # Handle saving subtasks
+                st.success(f"Subtasks for {page_name} saved successfully.")
 
 # Main function
 def render_backend():
