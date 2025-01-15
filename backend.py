@@ -152,39 +152,28 @@ def render_page(df, page_name, conn, github_user, github_repo, github_pat):
         with tabs[2]:
             st.subheader("Subtasks")
 
-            subtasks = []
-            for i in range(1, 6):
-                with st.expander(f"Subtask {i}"):
-                    category = st.text_input(f"Category of Task {i}", key=f"cat_{i}")
-                    aspect = st.text_input(f"Aspect of Task {i}", key=f"asp_{i}")
-                    current_situation = st.text_area(f"Current Situation of Task {i}", key=f"cs_{i}")
-                    name = st.text_input(f"Name of Task {i}", key=f"name_{i}")
-                    detail = st.text_area(f"Detail of Task {i}", key=f"detail_{i}")
-                    start_time = st.date_input(f"Start Time of Task {i}", key=f"start_{i}")
-                    outcome = st.text_area(f"Outcome of Task {i}", key=f"outcome_{i}")
-                    person_involved = st.text_input(f"Person Involved in Task {i}", key=f"person_{i}")
-                    budget = st.number_input(f"Budget of Task {i}", key=f"budget_{i}", step=100.0)
-                    deadline = st.date_input(f"Deadline of Task {i}", key=f"deadline_{i}")
-                    progress = st.slider(f"Progress of Task {i} (%)", 0, 100, key=f"progress_{i}")
+            if "subtasks" not in st.session_state:
+                st.session_state.subtasks = []
 
-                    # Collecting subtask data
-                    subtask = {
-                        "Category": category,
-                        "Aspect": aspect,
-                        "CurrentSituation": current_situation,
-                        "Name": name,
-                        "Detail": detail,
-                        "StartTime": start_time,
-                        "Outcome": outcome,
-                        "PersonInvolved": person_involved,
-                        "Budget": budget,
-                        "Deadline": deadline,
-                        "Progress": progress,
-                    }
-                    subtasks.append(subtask)
+            for i, subtask in enumerate(st.session_state.subtasks):
+                with st.expander(f"Subtask {i + 1}"):
+                    subtask["Category"] = st.text_input(f"Category of Task {i + 1}", subtask.get("Category", ""))
+                    subtask["Aspect"] = st.text_input(f"Aspect of Task {i + 1}", subtask.get("Aspect", ""))
+                    subtask["CurrentSituation"] = st.text_area(f"Current Situation of Task {i + 1}", subtask.get("CurrentSituation", ""))
+                    subtask["Name"] = st.text_input(f"Name of Task {i + 1}", subtask.get("Name", ""))
+                    subtask["Detail"] = st.text_area(f"Detail of Task {i + 1}", subtask.get("Detail", ""))
+                    subtask["StartTime"] = st.date_input(f"Start Time of Task {i + 1}", subtask.get("StartTime", datetime.date.today()))
+                    subtask["Outcome"] = st.text_area(f"Outcome of Task {i + 1}", subtask.get("Outcome", ""))
+                    subtask["PersonInvolved"] = st.text_input(f"Person Involved in Task {i + 1}", subtask.get("PersonInvolved", ""))
+                    subtask["Budget"] = st.number_input(f"Budget of Task {i + 1}", subtask.get("Budget", 0.0), step=100.0)
+                    subtask["Deadline"] = st.date_input(f"Deadline of Task {i + 1}", subtask.get("Deadline", datetime.date.today()))
+                    subtask["Progress"] = st.slider(f"Progress of Task {i + 1} (%)", 0, 100, subtask.get("Progress", 0))
+
+            if st.button("Add Subtask"):
+                st.session_state.subtasks.append({})
 
             if st.button(f"Save Subtasks for {page_name}"):
-                save_subtasks_to_db(conn, subtasks)
+                save_subtasks_to_db(conn, st.session_state.subtasks)
                 upload_file_to_github(
                     github_user,
                     github_repo,
