@@ -35,11 +35,29 @@ def render_page(df, page_name):
         st.write("Welcome to the AMAS Data Management System!")
         st.dataframe(df)
     else:
+        st.title(f"Details for: {page_name}")
+        tabs = st.tabs(["View", "Edit"])
+
+        # Filter row data for the selected Aspect
         row_data = df[df["Aspect"] == page_name].iloc[0]
 
-        st.title(f"Details for: {page_name}")
-        for col, value in row_data.items():
-            st.write(f"**{col}**: {value}")
+        # View Tab
+        with tabs[0]:
+            st.subheader("View Data")
+            for col, value in row_data.items():
+                st.write(f"**{col}**: {value}")
+
+        # Edit Tab
+        with tabs[1]:
+            st.subheader("Edit Data")
+            editable_data = {}
+            for col, value in row_data.items():
+                editable_data[col] = st.text_input(f"Edit {col}", str(value))
+
+            if st.button(f"Save Changes for {page_name}"):
+                # Update the DataFrame with the edited data
+                df.update(pd.DataFrame([editable_data]))
+                st.success("Changes saved. Be sure to commit changes to GitHub.")
 
 # Main function
 def render_backend():
