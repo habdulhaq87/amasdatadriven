@@ -86,9 +86,12 @@ def render_backend():
 
     # Dynamically populate the sidebar
     pages = ["Home"] + df["Aspect"].dropna().unique().tolist()
-    selected_page = st.sidebar.radio("Select Page:", pages)
 
-    render_page(df, selected_page)
+    # Create buttons for navigation
+    for page in pages:
+        if st.sidebar.button(page):
+            render_page(df, page)
+            break  # Exit the loop once the button is clicked
 
 if __name__ == "__main__":
     render_backend()
