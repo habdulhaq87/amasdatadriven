@@ -157,9 +157,15 @@ def render_page(df, page_name, conn, github_user, github_repo, github_pat):
 
             for i, subtask in enumerate(st.session_state.subtasks):
                 with st.expander(f"Subtask {i + 1}"):
-                    subtask["Category"] = st.text_input(f"Category of Task {i + 1}", subtask.get("Category", ""))
-                    subtask["Aspect"] = st.text_input(f"Aspect of Task {i + 1}", subtask.get("Aspect", ""))
-                    subtask["CurrentSituation"] = st.text_area(f"Current Situation of Task {i + 1}", subtask.get("CurrentSituation", ""))
+                    subtask["Category"] = row_data["Category"]
+                    st.text(f"Category of Task {i + 1}: {subtask['Category']}")
+
+                    subtask["Aspect"] = row_data["Aspect"]
+                    st.text(f"Aspect of Task {i + 1}: {subtask['Aspect']}")
+
+                    subtask["CurrentSituation"] = row_data["CurrentSituation"]
+                    st.text_area(f"Current Situation of Task {i + 1}: {subtask['CurrentSituation']}", disabled=True)
+
                     subtask["Name"] = st.text_input(f"Name of Task {i + 1}", subtask.get("Name", ""))
                     subtask["Detail"] = st.text_area(f"Detail of Task {i + 1}", subtask.get("Detail", ""))
                     subtask["StartTime"] = st.date_input(f"Start Time of Task {i + 1}", subtask.get("StartTime", datetime.date.today()))
