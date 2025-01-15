@@ -28,34 +28,6 @@ def get_file_sha_and_content(
         st.error(f"Failed to fetch {file_path} from GitHub: {response.status_code}")
         st.stop()
 
-# Function to update the file in GitHub
-def update_file_in_github(
-    github_user: str,
-    github_repo: str,
-    github_pat: str,
-    file_path: str,
-    new_df: pd.DataFrame,
-    old_sha: str,
-    commit_message: str = "Update CSV via Streamlit",
-):
-    url = f"https://api.github.com/repos/{github_user}/{github_repo}/contents/{file_path}"
-    headers = {"Authorization": f"Bearer {github_pat}"}
-
-    csv_str = new_df.to_csv(index=False)
-    b64_content = base64.b64encode(csv_str.encode("utf-8")).decode("utf-8")
-
-    payload = {
-        "message": commit_message,
-        "content": b64_content,
-        "sha": old_sha,
-    }
-
-    response = requests.put(url, headers=headers, data=json.dumps(payload))
-    if response.status_code in [200, 201]:
-        st.success("Your changes have been committed to GitHub!")
-    else:
-        st.error(f"Failed to update {file_path}: {response.status_code}\n{response.text}")
-
 # Function to render each page
 def render_page(df, page_name):
     if page_name == "Home":
@@ -68,8 +40,6 @@ def render_page(df, page_name):
         st.title(f"Details for: {page_name}")
         for col, value in row_data.items():
             st.write(f"**{col}**: {value}")
-
-        # Add edit functionality here if required
 
 # Main function
 def render_backend():
@@ -87,11 +57,17 @@ def render_backend():
     # Dynamically populate the sidebar
     pages = ["Home"] + df["Aspect"].dropna().unique().tolist()
 
+    # Initialize session state
+    if "current_page" not in st.session_state:
+        st.session_state.current_page = "Home"
+
     # Create buttons for navigation
     for page in pages:
         if st.sidebar.button(page):
-            render_page(df, page)
-            break  # Exit the loop once the button is clicked
+            st.session_state.current_page = page
+
+    # Render the currently selected page
+    render_page(df, st.session_state.current_page)
 
 if __name__ == "__main__":
     render_backend()
