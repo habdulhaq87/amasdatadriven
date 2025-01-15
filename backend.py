@@ -98,17 +98,17 @@ def save_subtasks_to_db(conn, subtasks):
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                subtask["Category"],
-                subtask["Aspect"],
-                subtask["CurrentSituation"],
-                subtask["Name"],
-                subtask["Detail"],
-                subtask["StartTime"].isoformat() if subtask["StartTime"] else None,
-                subtask["Outcome"],
-                subtask["PersonInvolved"],
-                subtask["Budget"],
-                subtask["Deadline"].isoformat() if subtask["Deadline"] else None,
-                subtask["Progress"],
+                subtask.get("Category", ""),
+                subtask.get("Aspect", ""),
+                subtask.get("CurrentSituation", ""),
+                subtask.get("Name", ""),
+                subtask.get("Detail", ""),
+                subtask.get("StartTime").isoformat() if subtask.get("StartTime") else None,
+                subtask.get("Outcome", ""),
+                subtask.get("PersonInvolved", ""),
+                subtask.get("Budget", 0.0),
+                subtask.get("Deadline").isoformat() if subtask.get("Deadline") else None,
+                subtask.get("Progress", 0),
             ),
         )
     conn.commit()
@@ -147,9 +147,14 @@ def render_page(df, page_name, conn, github_user, github_repo, github_pat):
 
             for i, subtask in enumerate(st.session_state.subtasks):
                 with st.expander(f"Subtask {i + 1}"):
-                    st.write(f"**Category of Task {i + 1}:** {row_data['Category']}")
-                    st.write(f"**Aspect of Task {i + 1}:** {row_data['Aspect']}")
-                    st.write(f"**Current Situation of Task {i + 1}:** {row_data['CurrentSituation']}")
+                    subtask["Category"] = row_data["Category"]
+                    st.write(f"**Category of Task {i + 1}:** {subtask['Category']}")
+
+                    subtask["Aspect"] = row_data["Aspect"]
+                    st.write(f"**Aspect of Task {i + 1}:** {subtask['Aspect']}")
+
+                    subtask["CurrentSituation"] = row_data["CurrentSituation"]
+                    st.write(f"**Current Situation of Task {i + 1}:** {subtask['CurrentSituation']}")
 
                     subtask["Name"] = st.text_input(f"Name of Task {i + 1}", subtask.get("Name", ""))
                     subtask["Detail"] = st.text_area(f"Detail of Task {i + 1}", subtask.get("Detail", ""))
