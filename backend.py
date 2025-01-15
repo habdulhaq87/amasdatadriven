@@ -63,10 +63,9 @@ def render_page(df, page_name):
         st.write("Welcome to the AMAS Data Management System!")
         st.dataframe(df)
     else:
-        category_name = page_name
-        row_data = df[df["Category"] == category_name].iloc[0]
+        row_data = df[df["Aspect"] == page_name].iloc[0]
 
-        st.title(f"Details for Category: {category_name}")
+        st.title(f"Details for: {page_name}")
         for col, value in row_data.items():
             st.write(f"**{col}**: {value}")
 
@@ -86,7 +85,7 @@ def render_backend():
     sha, df = get_file_sha_and_content(github_user, github_repo, github_pat, file_path)
 
     # Dynamically populate the sidebar
-    pages = ["Home"] + df["Category"].tolist()
+    pages = ["Home"] + df["Aspect"].dropna().unique().tolist()
     selected_page = st.sidebar.radio("Select Page:", pages)
 
     render_page(df, selected_page)
