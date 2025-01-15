@@ -46,12 +46,8 @@ def upload_file_to_github(
 
     b64_content = base64.b64encode(content).decode("utf-8")
 
-    # Get the current SHA of the file (if it exists)
     response = requests.get(url, headers=headers)
-    if response.status_code == 200:
-        sha = response.json()["sha"]
-    else:
-        sha = None
+    sha = response.json()["sha"] if response.status_code == 200 else None
 
     payload = {
         "message": commit_message,
@@ -127,28 +123,22 @@ def render_page(df, page_name, conn, github_user, github_repo, github_pat):
         st.title(f"Details for: {page_name}")
         tabs = st.tabs(["View", "Edit", "Subtasks"])
 
-        # Filter row data for the selected Aspect
         row_data = df[df["Aspect"] == page_name].iloc[0]
 
-        # View Tab
         with tabs[0]:
             st.subheader("View Data")
             for col, value in row_data.items():
                 st.write(f"**{col}**: {value}")
 
-        # Edit Tab
         with tabs[1]:
             st.subheader("Edit Data")
             editable_data = {}
             for col, value in row_data.items():
                 editable_data[col] = st.text_input(f"Edit {col}", str(value))
-
             if st.button(f"Save Changes for {page_name}"):
-                # Update the DataFrame with the edited data
                 df.update(pd.DataFrame([editable_data]))
                 st.success("Changes saved. Be sure to commit changes to GitHub.")
 
-        # Subtasks Tab
         with tabs[2]:
             st.subheader("Subtasks")
 
@@ -157,14 +147,9 @@ def render_page(df, page_name, conn, github_user, github_repo, github_pat):
 
             for i, subtask in enumerate(st.session_state.subtasks):
                 with st.expander(f"Subtask {i + 1}"):
-                    subtask["Category"] = row_data["Category"]
-                    st.text(f"Category of Task {i + 1}: {subtask['Category']}")
-
-                    subtask["Aspect"] = row_data["Aspect"]
-                    st.text(f"Aspect of Task {i + 1}: {subtask['Aspect']}")
-
-                    subtask["CurrentSituation"] = row_data["CurrentSituation"]
-                    st.text_area(f"Current Situation of Task {i + 1}: {subtask['CurrentSituation']}", disabled=True)
+                    st.write(f"**Category of Task {i + 1}:** {row_data['Category']}")
+                    st.write(f"**Aspect of Task {i + 1}:** {row_data['Aspect']}")
+                    st.write(f"**Current Situation of Task {i + 1}:** {row_data['CurrentSituation']}")
 
                     subtask["Name"] = st.text_input(f"Name of Task {i + 1}", subtask.get("Name", ""))
                     subtask["Detail"] = st.text_area(f"Detail of Task {i + 1}", subtask.get("Detail", ""))
@@ -193,31 +178,25 @@ def render_page(df, page_name, conn, github_user, github_repo, github_pat):
 def render_backend():
     st.set_page_config(page_title="AMAS Data Management", layout="wide")
 
-    # Sidebar for page navigation
     st.sidebar.title("Navigation")
     github_user = "habdulhaq87"
     github_repo = "amasdatadriven"
-    github_pat = st.secrets["github"]["pat"]  
+    github_pat = st.secrets["github"]["pat"]
     file_path = "amas_data.csv"
 
     sha, df = get_file_sha_and_content(github_user, github_repo, github_pat, file_path)
 
-    # Initialize SQLite database
     conn = initialize_database()
 
-    # Dynamically populate the sidebar
     pages = ["Home"] + df["Aspect"].dropna().unique().tolist()
 
-    # Initialize session state
     if "current_page" not in st.session_state:
         st.session_state.current_page = "Home"
 
-    # Create buttons for navigation
     for page in pages:
         if st.sidebar.button(page):
             st.session_state.current_page = page
 
-    # Render the currently selected page
     render_page(df, st.session_state.current_page, conn, github_user, github_repo, github_pat)
 
 if __name__ == "__main__":
