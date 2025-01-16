@@ -121,6 +121,12 @@ def save_subtasks_to_db(conn, subtasks):
         )
     conn.commit()
 
+# Function to delete a subtask from SQLite database
+def delete_subtask_from_db(conn, subtask_id):
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM subtasks WHERE id = ?", (subtask_id,))
+    conn.commit()
+
 # Function to render each page
 def render_page(df, page_name, conn, github_user, github_repo, github_pat):
     if page_name == "Home":
@@ -204,6 +210,10 @@ def render_page(df, page_name, conn, github_user, github_repo, github_pat):
                         st.write(f"**Budget:** ${subtask['budget']}")
                         st.write(f"**Deadline:** {subtask['deadline']}")
                         st.write(f"**Progress:** {subtask['progress']}%")
+
+                        if st.button(f"Delete Subtask {subtask['id']}"):
+                            delete_subtask_from_db(conn, subtask['id'])
+                            st.experimental_rerun()
             else:
                 st.write("No subtasks found in the database.")
 
