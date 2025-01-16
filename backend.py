@@ -8,8 +8,6 @@ import pandas as pd
 from subtasks import (
     initialize_subtasks_database,
     fetch_subtasks_from_db,
-    save_subtasks_to_db,
-    delete_subtask_from_db,
     render_saved_subtasks,
 )
 
@@ -75,7 +73,7 @@ def render_page(df, page_name, conn, github_user, github_repo, github_pat):
         st.dataframe(df)
     else:
         st.title(f"Details for: {page_name}")
-        tabs = st.tabs(["View", "Edit", "Subtasks", "View Saved Subtasks"])
+        tabs = st.tabs(["View", "Edit", "View Saved Subtasks"])
 
         row_data = df[df["Aspect"] == page_name].iloc[0]
 
@@ -94,46 +92,6 @@ def render_page(df, page_name, conn, github_user, github_repo, github_pat):
                 st.success("Changes saved. Be sure to commit changes to GitHub.")
 
         with tabs[2]:
-            st.subheader("Subtasks")
-
-            if "subtasks" not in st.session_state:
-                st.session_state.subtasks = []
-
-            for i, subtask in enumerate(st.session_state.subtasks):
-                with st.expander(f"Subtask {i + 1}"):
-                    subtask["Category"] = row_data["Category"]
-                    st.write(f"**Category of Task {i + 1}:** {subtask['Category']}")
-
-                    subtask["Aspect"] = row_data["Aspect"]
-                    st.write(f"**Aspect of Task {i + 1}:** {subtask['Aspect']}")
-
-                    subtask["CurrentSituation"] = row_data["CurrentSituation"]
-                    st.write(f"**Current Situation of Task {i + 1}:** {subtask['CurrentSituation']}")
-
-                    subtask["Name"] = st.text_input(f"Name of Task {i + 1}", subtask.get("Name", ""))
-                    subtask["Detail"] = st.text_area(f"Detail of Task {i + 1}", subtask.get("Detail", ""))
-                    subtask["StartTime"] = st.date_input(f"Start Time of Task {i + 1}", subtask.get("StartTime", datetime.date.today()))
-                    subtask["Outcome"] = st.text_area(f"Outcome of Task {i + 1}", subtask.get("Outcome", ""))
-                    subtask["PersonInvolved"] = st.text_input(f"Person Involved in Task {i + 1}", subtask.get("PersonInvolved", ""))
-                    subtask["Budget"] = st.number_input(f"Budget of Task {i + 1}", subtask.get("Budget", 0.0), step=100.0)
-                    subtask["Deadline"] = st.date_input(f"Deadline of Task {i + 1}", subtask.get("Deadline", datetime.date.today()))
-                    subtask["Progress"] = st.slider(f"Progress of Task {i + 1} (%)", 0, 100, subtask.get("Progress", 0))
-
-            if st.button("Add Subtask"):
-                st.session_state.subtasks.append({})
-
-            if st.button(f"Save Subtasks for {page_name}"):
-                save_subtasks_to_db(conn, st.session_state.subtasks)
-                upload_file_to_github(
-                    github_user,
-                    github_repo,
-                    github_pat,
-                    "subtasks.db",
-                    "subtasks.db",
-                    f"Update subtasks for {page_name} at {datetime.datetime.now()}"
-                )
-
-        with tabs[3]:
             render_saved_subtasks(conn)
 
 # Main function
