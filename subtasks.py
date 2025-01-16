@@ -1,7 +1,6 @@
 import sqlite3
 import pandas as pd
 import streamlit as st
-import datetime
 
 def initialize_subtasks_database():
     """Initialize the SQLite database for subtasks."""
@@ -63,38 +62,29 @@ def save_subtasks_to_db(conn, subtasks):
         )
     conn.commit()
 
-def update_subtask_in_db(conn, subtask):
-    """Update an existing subtask in the database."""
+def update_subtask_in_db(conn, subtask_id, updated_data):
+    """Update a subtask in the database."""
     cursor = conn.cursor()
     cursor.execute(
         """
         UPDATE subtasks
-        SET category = ?,
-            aspect = ?,
-            current_situation = ?,
-            name = ?,
-            detail = ?,
-            start_time = ?,
-            outcome = ?,
-            person_involved = ?,
-            budget = ?,
-            deadline = ?,
-            progress = ?
+        SET category = ?, aspect = ?, current_situation = ?, name = ?, detail = ?,
+            start_time = ?, outcome = ?, person_involved = ?, budget = ?, deadline = ?, progress = ?
         WHERE id = ?
         """,
         (
-            subtask.get("Category", ""),
-            subtask.get("Aspect", ""),
-            subtask.get("CurrentSituation", ""),
-            subtask.get("Name", ""),
-            subtask.get("Detail", ""),
-            subtask.get("StartTime").isoformat() if subtask.get("StartTime") else None,
-            subtask.get("Outcome", ""),
-            subtask.get("PersonInvolved", ""),
-            subtask.get("Budget", 0.0),
-            subtask.get("Deadline").isoformat() if subtask.get("Deadline") else None,
-            subtask.get("Progress", 0),
-            subtask.get("id"),
+            updated_data.get("category", ""),
+            updated_data.get("aspect", ""),
+            updated_data.get("current_situation", ""),
+            updated_data.get("name", ""),
+            updated_data.get("detail", ""),
+            updated_data.get("start_time", None),
+            updated_data.get("outcome", ""),
+            updated_data.get("person_involved", ""),
+            updated_data.get("budget", 0.0),
+            updated_data.get("deadline", None),
+            updated_data.get("progress", 0),
+            subtask_id,
         ),
     )
     conn.commit()
@@ -106,34 +96,32 @@ def delete_subtask_from_db(conn, subtask_id):
     conn.commit()
 
 def render_saved_subtasks(conn):
-    """Render the saved subtasks in an interactive Streamlit UI."""
-    st.subheader("View and Modify Saved Subtasks")
+    """Render the saved subtasks in an interactive Streamlit UI with edit functionality."""
+    st.subheader("View and Edit Saved Subtasks")
     saved_subtasks = fetch_subtasks_from_db(conn)
     if not saved_subtasks.empty:
         for _, subtask in saved_subtasks.iterrows():
             with st.expander(f"Subtask ID: {subtask['id']}"):
-                editable_subtask = {
-                    "id": subtask["id"],
-                    "Category": st.text_input("Category", subtask["category"], key=f"category_{subtask['id']}"),
-                    "Aspect": st.text_input("Aspect", subtask["aspect"], key=f"aspect_{subtask['id']}"),
-                    "CurrentSituation": st.text_area("Current Situation", subtask["current_situation"], key=f"current_situation_{subtask['id']}"),
-                    "Name": st.text_input("Name", subtask["name"], key=f"name_{subtask['id']}"),
-                    "Detail": st.text_area("Detail", subtask["detail"], key=f"detail_{subtask['id']}"),
-                    "StartTime": st.date_input("Start Time", pd.to_datetime(subtask["start_time"]) if subtask["start_time"] else datetime.date.today(), key=f"start_time_{subtask['id']}"),
-                    "Outcome": st.text_area("Outcome", subtask["outcome"], key=f"outcome_{subtask['id']}"),
-                    "PersonInvolved": st.text_input("Person Involved", subtask["person_involved"], key=f"person_involved_{subtask['id']}"),
-                    "Budget": st.number_input("Budget", subtask["budget"], step=100.0, key=f"budget_{subtask['id']}"),
-                    "Deadline": st.date_input("Deadline", pd.to_datetime(subtask["deadline"]) if subtask["deadline"] else datetime.date.today(), key=f"deadline_{subtask['id']}"),
-                    "Progress": st.slider("Progress (%)", 0, 100, subtask["progress"], key=f"progress_{subtask['id']}")
-                }
+                updated_data = {}
+
+                updated_data["category"] = st.text_input(f"Category", subtask["category"], key=f"category_{subtask['id']}")
+                updated_data["aspect"] = st.text_input(f"Aspect", subtask["aspect"], key=f"aspect_{subtask['id']}")
+                updated_data["current_situation"] = st.text_area(f"Current Situation", subtask["current_situation"], key=f"current_situation_{subtask['id']}")
+                updated_data["name"] = st.text_input(f"Name", subtask["name"], key=f"name_{subtask['id']}")
+                updated_data["detail"] = st.text_area(f"Detail", subtask["detail"], key=f"detail_{subtask['id']}")
+                updated_data["start_time"] = st.text_input(f"Start Time", subtask["start_time"], key=f"start_time_{subtask['id']}")
+                updated_data["outcome"] = st.text_area(f"Outcome", subtask["outcome"], key=f"outcome_{subtask['id']}")
+                updated_data["person_involved"] = st.text_input(f"Person Involved", subtask["person_involved"], key=f"person_involved_{subtask['id']}")
+                updated_data["budget"] = st.number_input(f"Budget", subtask["budget"], step=100.0, key=f"budget_{subtask['id']}")
+                updated_data["deadline"] = st.text_input(f"Deadline", subtask["deadline"], key=f"deadline_{subtask['id']}")
+                updated_data["progress"] = st.slider(f"Progress (%)", 0, 100, subtask["progress"], key=f"progress_{subtask['id']}")
 
                 if st.button(f"Save Changes for Subtask {subtask['id']}", key=f"save_{subtask['id']}"):
-                    update_subtask_in_db(conn, editable_subtask)
+                    update_subtask_in_db(conn, subtask["id"], updated_data)
                     st.success(f"Subtask {subtask['id']} updated successfully!")
 
                 if st.button(f"Delete Subtask {subtask['id']}", key=f"delete_{subtask['id']}"):
                     delete_subtask_from_db(conn, subtask["id"])
                     st.success(f"Subtask {subtask['id']} deleted successfully!")
-                    st.experimental_set_query_params(refresh=True)
     else:
         st.write("No subtasks found in the database.")
