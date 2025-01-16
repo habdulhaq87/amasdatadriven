@@ -1,12 +1,54 @@
 import streamlit as st
 import pandas as pd
 import sqlite3
+import datetime
+import base64
+import json
+import requests
 
 from subtasks import (
     initialize_subtasks_database,
-    upload_csv_subtasks,        # still specifically uploads to 'subtasks' table
-    delete_subtask_from_db,     # specifically deletes from 'subtasks' table
+    upload_csv_subtasks,        # uploads to 'subtasks' table
+    delete_subtask_from_db,     # existing function to delete from 'subtasks' table (unused here)
 )
+
+def upload_file_to_github(
+    github_user: str,
+    github_repo: str,
+    github_pat: str,
+    file_path: str,
+    local_file_path: str,
+    commit_message: str,
+):
+    """
+    Upload or update a file (e.g., 'subtasks.db') in the given GitHub repo.
+    - file_path: path in GitHub
+    - local_file_path: local file to push
+    - commit_message: commit message
+    """
+    url = f"https://api.github.com/repos/{github_user}/{github_repo}/contents/{file_path}"
+    headers = {"Authorization": f"Bearer {github_pat}"}
+
+    with open(local_file_path, "rb") as file:
+        content = file.read()
+
+    b64_content = base64.b64encode(content).decode("utf-8")
+
+    # First, check if the file exists on GitHub to get its 'sha'
+    response = requests.get(url, headers=headers)
+    sha = response.json()["sha"] if response.status_code == 200 else None
+
+    payload = {
+        "message": commit_message,
+        "content": b64_content,
+        "sha": sha,
+    }
+
+    response = requests.put(url, headers=headers, data=json.dumps(payload))
+    if response.status_code in [200, 201]:
+        st.success("Database successfully pushed to GitHub.")
+    else:
+        st.error(f"Failed to upload file to GitHub: {response.status_code}\n{response.text}")
 
 def get_table_names(conn: sqlite3.Connection):
     """
@@ -41,13 +83,13 @@ def render_add_subtasks_page(conn: sqlite3.Connection):
     st.write("Upload a CSV of subtasks with the required columns.")
     upload_csv_subtasks(conn)
 
-
-def render_view_database_page(conn: sqlite3.Connection):
+def render_view_database_page(conn: sqlite3.Connection, github_user, github_repo, github_pat):
     """
     Page to view and manage any table in the database:
       - Select a table from a dropdown
       - View its contents in a dataframe
-      - Delete a row by ID
+      - Delete a row by ID (locally)
+      - Then push the updated DB file to GitHub
     """
     st.title("View Database")
 
@@ -59,25 +101,38 @@ def render_view_database_page(conn: sqlite3.Connection):
 
     # Let the user select which table to view
     selected_table = st.selectbox("Select a table to view", options=tables)
-    
+
     if selected_table:
         # Fetch and display data from the chosen table
         df = fetch_data_from_table(conn, selected_table)
-        
+
         if not df.empty:
             st.write(f"### Table: {selected_table}")
             st.dataframe(df)
-            
+
             # Deletion controls
             st.write("#### Delete a Row by ID")
             row_id = st.number_input("Enter the ID of the row to delete:", min_value=1, step=1)
-            
+
             if st.button("Delete"):
+                # Check if 'id' is in the table and row_id exists
                 if "id" in df.columns and row_id in df["id"].values:
+                    # 1) Delete from the local database
                     delete_row_by_id(conn, selected_table, row_id)
                     st.success(f"Row with ID {row_id} has been deleted from '{selected_table}'.")
-                    
-                    # Refresh and display the updated data
+
+                    # 2) Push the updated database to GitHub
+                    commit_msg = f"Delete row {row_id} from {selected_table} at {datetime.datetime.now()}"
+                    upload_file_to_github(
+                        github_user=github_user,
+                        github_repo=github_repo,
+                        github_pat=github_pat,
+                        file_path="subtasks.db",      # path on GitHub
+                        local_file_path="subtasks.db",# local DB file
+                        commit_message=commit_msg,
+                    )
+
+                    # 3) Refresh and display the updated data
                     updated_df = fetch_data_from_table(conn, selected_table)
                     if not updated_df.empty:
                         st.dataframe(updated_df)
@@ -88,24 +143,29 @@ def render_view_database_page(conn: sqlite3.Connection):
         else:
             st.write(f"'{selected_table}' table is empty.")
 
-
 def render_backend():
     st.set_page_config(page_title="AMAS Data Management", layout="wide")
 
     # Initialize or connect to the SQLite database
     conn = initialize_subtasks_database()
 
+    # Retrieve GitHub details (please set your own)
+    # ------------------------------------------------------
+    github_user = "YOUR_GITHUB_USERNAME"  # e.g. "habdulhaq87"
+    github_repo = "YOUR_REPO_NAME"        # e.g. "amasdatadriven"
+    github_pat = st.secrets["github"]["pat"]
+    # ------------------------------------------------------
+
     # Sidebar navigation
     st.sidebar.title("Navigation")
     pages = {
-        "Add Subtasks": render_add_subtasks_page,
-        "View Database": render_view_database_page,
+        "Add Subtasks": lambda c: render_add_subtasks_page(c),
+        "View Database": lambda c: render_view_database_page(c, github_user, github_repo, github_pat),
     }
     choice = st.sidebar.radio("Go to", list(pages.keys()))
 
     # Render the chosen page
     pages[choice](conn)
-
 
 if __name__ == "__main__":
     render_backend()
