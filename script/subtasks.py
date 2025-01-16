@@ -3,6 +3,7 @@ import pandas as pd
 import streamlit as st
 
 def initialize_subtasks_database():
+    """Initialize the SQLite database for subtasks."""
     conn = sqlite3.connect("subtasks.db")
     cursor = conn.cursor()
     cursor.execute(
@@ -27,6 +28,7 @@ def initialize_subtasks_database():
     return conn
 
 def fetch_subtasks_from_db(conn):
+    """Fetch all subtasks from the database."""
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM subtasks")
     columns = [col[0] for col in cursor.description]
@@ -34,6 +36,7 @@ def fetch_subtasks_from_db(conn):
     return pd.DataFrame(rows, columns=columns)
 
 def save_subtasks_to_db(conn, subtasks):
+    """Save a list of subtasks to the database."""
     cursor = conn.cursor()
     for subtask in subtasks:
         cursor.execute(
@@ -60,11 +63,13 @@ def save_subtasks_to_db(conn, subtasks):
     conn.commit()
 
 def delete_subtask_from_db(conn, subtask_id):
+    """Delete a subtask from the database by its ID."""
     cursor = conn.cursor()
     cursor.execute("DELETE FROM subtasks WHERE id = ?", (subtask_id,))
     conn.commit()
 
 def render_saved_subtasks(conn):
+    """Render the saved subtasks in an interactive Streamlit UI."""
     st.subheader("View Saved Subtasks")
     saved_subtasks = fetch_subtasks_from_db(conn)
     if not saved_subtasks.empty:
@@ -84,6 +89,6 @@ def render_saved_subtasks(conn):
 
                 if st.button(f"Delete Subtask {subtask['id']}", key=f"delete_{subtask['id']}"):
                     delete_subtask_from_db(conn, subtask['id'])
-                    st.session_state.refresh = not st.session_state.get("refresh", False)
+                    st.experimental_set_query_params(refresh=True)
     else:
         st.write("No subtasks found in the database.")
