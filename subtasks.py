@@ -28,10 +28,10 @@ def initialize_subtasks_database():
     conn.commit()
     return conn
 
-def fetch_subtasks_from_db(conn):
-    """Fetch all subtasks from the database."""
+def fetch_subtasks_for_page(conn, aspect):
+    """Fetch subtasks related to a specific page (aspect)."""
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM subtasks")
+    cursor.execute("SELECT * FROM subtasks WHERE aspect = ?", (aspect,))
     columns = [col[0] for col in cursor.description]
     rows = cursor.fetchall()
     return pd.DataFrame(rows, columns=columns)
@@ -105,17 +105,17 @@ def delete_subtask_from_db(conn, subtask_id):
     cursor.execute("DELETE FROM subtasks WHERE id = ?", (subtask_id,))
     conn.commit()
 
-def render_saved_subtasks(conn):
-    """Render the saved subtasks in an interactive Streamlit UI."""
-    st.subheader("View and Modify Saved Subtasks")
-    saved_subtasks = fetch_subtasks_from_db(conn)
+def render_saved_subtasks(conn, aspect):
+    """Render the saved subtasks for the current page in an interactive Streamlit UI."""
+    st.subheader(f"View and Modify Subtasks for {aspect}")
+    saved_subtasks = fetch_subtasks_for_page(conn, aspect)
     if not saved_subtasks.empty:
         for _, subtask in saved_subtasks.iterrows():
             with st.expander(f"Subtask ID: {subtask['id']}"):
                 editable_subtask = {
                     "id": subtask["id"],
                     "Category": st.text_input("Category", subtask["category"], key=f"category_{subtask['id']}"),
-                    "Aspect": st.text_input("Aspect", subtask["aspect"], key=f"aspect_{subtask['id']}"),
+                    "Aspect": subtask["aspect"],
                     "CurrentSituation": st.text_area("Current Situation", subtask["current_situation"], key=f"current_situation_{subtask['id']}"),
                     "Name": st.text_input("Name", subtask["name"], key=f"name_{subtask['id']}"),
                     "Detail": st.text_area("Detail", subtask["detail"], key=f"detail_{subtask['id']}"),
@@ -136,4 +136,4 @@ def render_saved_subtasks(conn):
                     st.success(f"Subtask {subtask['id']} deleted successfully!")
                     st.experimental_set_query_params(refresh=True)
     else:
-        st.write("No subtasks found in the database.")
+        st.write(f"No subtasks found for {aspect}.")
