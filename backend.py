@@ -151,8 +151,8 @@ def render_backend():
 
     # Retrieve GitHub details (please set your own)
     # ------------------------------------------------------
-    github_user = "YOUR_GITHUB_USERNAME"  # e.g. "habdulhaq87"
-    github_repo = "YOUR_REPO_NAME"        # e.g. "amasdatadriven"
+    github_user = "habdulhaq87"  # e.g. "habdulhaq87"
+    github_repo = "amasdatadriven"        # e.g. "amasdatadriven"
     github_pat = st.secrets["github"]["pat"]
     # ------------------------------------------------------
 
