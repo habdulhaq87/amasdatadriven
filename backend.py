@@ -22,9 +22,6 @@ def upload_file_to_github(
 ):
     """
     Upload or update a file (e.g., 'subtasks.db') in the given GitHub repo.
-    - file_path: path in GitHub
-    - local_file_path: local file to push
-    - commit_message: commit message
     """
     url = f"https://api.github.com/repos/{github_user}/{github_repo}/contents/{file_path}"
     headers = {"Authorization": f"Bearer {github_pat}"}
@@ -85,11 +82,7 @@ def render_add_subtasks_page(conn: sqlite3.Connection):
 
 def render_view_database_page(conn: sqlite3.Connection, github_user, github_repo, github_pat):
     """
-    Page to view and manage any table in the database:
-      - Select a table from a dropdown
-      - View its contents in a dataframe
-      - Delete a row by ID (locally)
-      - Then push the updated DB file to GitHub
+    Page to view and manage any table in the database.
     """
     st.title("View Database")
 
@@ -115,7 +108,6 @@ def render_view_database_page(conn: sqlite3.Connection, github_user, github_repo
             row_id = st.number_input("Enter the ID of the row to delete:", min_value=1, step=1)
 
             if st.button("Delete"):
-                # Check if 'id' is in the table and row_id exists
                 if "id" in df.columns and row_id in df["id"].values:
                     # 1) Delete from the local database
                     delete_row_by_id(conn, selected_table, row_id)
@@ -143,29 +135,39 @@ def render_view_database_page(conn: sqlite3.Connection, github_user, github_repo
         else:
             st.write(f"'{selected_table}' table is empty.")
 
+def render_phases_page():
+    """
+    Temporary 'Phases' page for placeholder content.
+    """
+    st.title("Phases")
+    st.write("This is a placeholder for the Phases page.")
+    st.write("You can add content related to project phases or workflows here.")
+
 def render_backend():
     st.set_page_config(page_title="AMAS Data Management", layout="wide")
 
     # Initialize or connect to the SQLite database
     conn = initialize_subtasks_database()
 
-    # Retrieve GitHub details (please set your own)
-    # ------------------------------------------------------
-    github_user = "habdulhaq87"  # e.g. "habdulhaq87"
-    github_repo = "amasdatadriven"        # e.g. "amasdatadriven"
+    # Retrieve GitHub details
+    github_user = "habdulhaq87"  # Example user
+    github_repo = "amasdatadriven"  # Example repo
     github_pat = st.secrets["github"]["pat"]
-    # ------------------------------------------------------
 
     # Sidebar navigation
     st.sidebar.title("Navigation")
     pages = {
         "Add Subtasks": lambda c: render_add_subtasks_page(c),
         "View Database": lambda c: render_view_database_page(c, github_user, github_repo, github_pat),
+        "Phases": lambda _: render_phases_page(),
     }
     choice = st.sidebar.radio("Go to", list(pages.keys()))
 
     # Render the chosen page
-    pages[choice](conn)
+    if choice == "Phases":
+        pages[choice](None)
+    else:
+        pages[choice](conn)
 
 if __name__ == "__main__":
     render_backend()
