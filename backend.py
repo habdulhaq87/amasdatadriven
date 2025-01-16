@@ -191,7 +191,19 @@ def render_page(df, page_name, conn, github_user, github_repo, github_pat):
             st.subheader("View Saved Subtasks")
             saved_subtasks = fetch_subtasks_from_db(conn)
             if not saved_subtasks.empty:
-                st.dataframe(saved_subtasks)
+                for _, subtask in saved_subtasks.iterrows():
+                    with st.expander(f"Subtask ID: {subtask['id']}"):
+                        st.write(f"**Category:** {subtask['category']}")
+                        st.write(f"**Aspect:** {subtask['aspect']}")
+                        st.write(f"**Current Situation:** {subtask['current_situation']}")
+                        st.write(f"**Name:** {subtask['name']}")
+                        st.write(f"**Detail:** {subtask['detail']}")
+                        st.write(f"**Start Time:** {subtask['start_time']}")
+                        st.write(f"**Outcome:** {subtask['outcome']}")
+                        st.write(f"**Person Involved:** {subtask['person_involved']}")
+                        st.write(f"**Budget:** ${subtask['budget']}")
+                        st.write(f"**Deadline:** {subtask['deadline']}")
+                        st.write(f"**Progress:** {subtask['progress']}%")
             else:
                 st.write("No subtasks found in the database.")
 
