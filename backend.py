@@ -213,7 +213,8 @@ def render_page(df, page_name, conn, github_user, github_repo, github_pat):
 
                         if st.button(f"Delete Subtask {subtask['id']}", key=f"delete_{subtask['id']}"):
                             delete_subtask_from_db(conn, subtask['id'])
-                            st.experimental_rerun()  # Using correct rerun method
+                            st.session_state.refresh = not st.session_state.get("refresh", False)
+
             else:
                 st.write("No subtasks found in the database.")
 
