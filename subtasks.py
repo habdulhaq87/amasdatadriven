@@ -111,7 +111,7 @@ def render_saved_subtasks(conn, aspect):
     saved_subtasks = fetch_subtasks_for_page(conn, aspect)
     if not saved_subtasks.empty:
         for _, subtask in saved_subtasks.iterrows():
-            with st.expander(f"Subtask ID: {subtask['id']}"):
+            with st.expander(f"Task Name: {subtask['name']}"):
                 editable_subtask = {
                     "id": subtask["id"],
                     "Category": st.text_input("Category", subtask["category"], key=f"category_{subtask['id']}"),
@@ -127,13 +127,13 @@ def render_saved_subtasks(conn, aspect):
                     "Progress": st.slider("Progress (%)", 0, 100, subtask["progress"], key=f"progress_{subtask['id']}")
                 }
 
-                if st.button(f"Save Changes for Subtask {subtask['id']}", key=f"save_{subtask['id']}"):
+                if st.button(f"Save Changes for Task {subtask['name']}", key=f"save_{subtask['id']}"):
                     update_subtask_in_db(conn, editable_subtask)
-                    st.success(f"Subtask {subtask['id']} updated successfully!")
+                    st.success(f"Task '{subtask['name']}' updated successfully!")
 
-                if st.button(f"Delete Subtask {subtask['id']}", key=f"delete_{subtask['id']}"):
+                if st.button(f"Delete Task {subtask['name']}", key=f"delete_{subtask['id']}"):
                     delete_subtask_from_db(conn, subtask["id"])
-                    st.success(f"Subtask {subtask['id']} deleted successfully!")
+                    st.success(f"Task '{subtask['name']}' deleted successfully!")
                     st.experimental_set_query_params(refresh=True)
     else:
         st.write(f"No subtasks found for {aspect}.")
