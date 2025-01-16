@@ -11,6 +11,7 @@ from subtasks import (
     upload_csv_subtasks,        # uploads to 'subtasks' table
     delete_subtask_from_db,     # existing function to delete from 'subtasks' table (unused here)
 )
+from database_phases import render_database_phases_page  # Import the new Database Phases functionality
 
 def upload_file_to_github(
     github_user: str,
