@@ -86,6 +86,14 @@ def initialize_database():
     conn.commit()
     return conn
 
+# Function to fetch subtasks from SQLite database
+def fetch_subtasks_from_db(conn):
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM subtasks")
+    columns = [col[0] for col in cursor.description]
+    rows = cursor.fetchall()
+    return pd.DataFrame(rows, columns=columns)
+
 # Function to save subtasks to SQLite database
 def save_subtasks_to_db(conn, subtasks):
     cursor = conn.cursor()
@@ -121,7 +129,7 @@ def render_page(df, page_name, conn, github_user, github_repo, github_pat):
         st.dataframe(df)
     else:
         st.title(f"Details for: {page_name}")
-        tabs = st.tabs(["View", "Edit", "Subtasks"])
+        tabs = st.tabs(["View", "Edit", "Subtasks", "View Saved Subtasks"])
 
         row_data = df[df["Aspect"] == page_name].iloc[0]
 
@@ -178,6 +186,14 @@ def render_page(df, page_name, conn, github_user, github_repo, github_pat):
                     "subtasks.db",
                     f"Update subtasks for {page_name} at {datetime.datetime.now()}"
                 )
+
+        with tabs[3]:
+            st.subheader("View Saved Subtasks")
+            saved_subtasks = fetch_subtasks_from_db(conn)
+            if not saved_subtasks.empty:
+                st.dataframe(saved_subtasks)
+            else:
+                st.write("No subtasks found in the database.")
 
 # Main function
 def render_backend():
