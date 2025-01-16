@@ -5,13 +5,13 @@ import datetime
 import base64
 import json
 import requests
-
 from subtasks import (
     initialize_subtasks_database,
-    upload_csv_subtasks,        # uploads to 'subtasks' table
-    delete_subtask_from_db,     # existing function to delete from 'subtasks' table (unused here)
+    upload_csv_subtasks,
+    delete_subtask_from_db,
 )
 from database_phases import render_database_phases_page  # Import the new Database Phases functionality
+
 
 def upload_file_to_github(
     github_user: str,
@@ -48,6 +48,7 @@ def upload_file_to_github(
     else:
         st.error(f"Failed to upload file to GitHub: {response.status_code}\n{response.text}")
 
+
 def get_table_names(conn: sqlite3.Connection):
     """
     Fetch and return the list of all table names in the SQLite database.
@@ -57,12 +58,14 @@ def get_table_names(conn: sqlite3.Connection):
     tables = [row[0] for row in cursor.fetchall()]
     return tables
 
+
 def fetch_data_from_table(conn: sqlite3.Connection, table_name: str) -> pd.DataFrame:
     """
     Fetch all data from the specified table as a pandas DataFrame.
     """
     query = f"SELECT * FROM {table_name}"
     return pd.read_sql_query(query, conn)
+
 
 def delete_row_by_id(conn: sqlite3.Connection, table_name: str, row_id: int):
     """
@@ -73,6 +76,7 @@ def delete_row_by_id(conn: sqlite3.Connection, table_name: str, row_id: int):
     cursor.execute(f"DELETE FROM {table_name} WHERE id = ?", (row_id,))
     conn.commit()
 
+
 def render_add_subtasks_page(conn: sqlite3.Connection):
     """
     Page for uploading subtasks via CSV (to the 'subtasks' table).
@@ -80,6 +84,7 @@ def render_add_subtasks_page(conn: sqlite3.Connection):
     st.title("Add Subtasks")
     st.write("Upload a CSV of subtasks with the required columns.")
     upload_csv_subtasks(conn)
+
 
 def render_view_database_page(conn: sqlite3.Connection, github_user, github_repo, github_pat):
     """
@@ -136,13 +141,6 @@ def render_view_database_page(conn: sqlite3.Connection, github_user, github_repo
         else:
             st.write(f"'{selected_table}' table is empty.")
 
-def render_phases_page():
-    """
-    Temporary 'Phases' page for placeholder content.
-    """
-    st.title("Phases")
-    st.write("This is a placeholder for the Phases page.")
-    st.write("You can add content related to project phases or workflows here.")
 
 def render_backend():
     st.set_page_config(page_title="AMAS Data Management", layout="wide")
@@ -160,15 +158,16 @@ def render_backend():
     pages = {
         "Add Subtasks": lambda c: render_add_subtasks_page(c),
         "View Database": lambda c: render_view_database_page(c, github_user, github_repo, github_pat),
-        "Phases": lambda _: render_phases_page(),
+        "Database Phases": lambda _: render_database_phases_page(),
     }
     choice = st.sidebar.radio("Go to", list(pages.keys()))
 
     # Render the chosen page
-    if choice == "Phases":
+    if choice == "Database Phases":
         pages[choice](None)
     else:
         pages[choice](conn)
+
 
 if __name__ == "__main__":
     render_backend()
