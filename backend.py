@@ -1,5 +1,4 @@
 import streamlit as st
-import pandas as pd
 from subtasks import (
     initialize_subtasks_database,
     upload_csv_subtasks,
@@ -19,7 +18,7 @@ def render_add_subtasks_page(conn):
 
 def render_view_database_page(conn):
     """
-    Page to view and manage the existing subtasks database as a table.
+    Page to view and manage the existing subtasks database with delete functionality.
     """
     st.title("View Subtasks Database")
 
@@ -27,25 +26,24 @@ def render_view_database_page(conn):
     df = fetch_subtasks_from_db(conn)
 
     if not df.empty:
-        # Add a "Delete" column with checkboxes
-        st.write("Select rows to delete by checking the boxes.")
-        df['Delete'] = False  # Temporary column for checkboxes
-        for index in df.index:
-            df.at[index, 'Delete'] = st.checkbox(f"Delete row {df.loc[index, 'id']}", key=f"delete_{index}")
+        # Display the table
+        st.write("Below is the list of all subtasks:")
+        st.dataframe(df)
 
-        # Display the table without the "Delete" column
-        st.dataframe(df.drop(columns=["Delete"]))
+        # Input for row ID to delete
+        st.write("### Delete a Subtask")
+        row_id = st.number_input(
+            "Enter the ID of the row to delete:", min_value=1, step=1
+        )
 
-        # Handle delete action
-        if st.button("Delete Selected Rows"):
-            rows_to_delete = df[df['Delete'] == True]
-            if not rows_to_delete.empty:
-                for subtask_id in rows_to_delete['id']:
-                    delete_subtask_from_db(conn, subtask_id)
-                st.success(f"Deleted {len(rows_to_delete)} selected row(s).")
+        # Button to delete the selected row
+        if st.button("Delete"):
+            if row_id in df["id"].values:
+                delete_subtask_from_db(conn, row_id)
+                st.success(f"Subtask with ID {row_id} has been deleted.")
                 st.experimental_rerun()  # Refresh the page to update the table
             else:
-                st.warning("No rows selected for deletion.")
+                st.warning("The entered ID does not exist in the database.")
     else:
         st.write("No subtasks found in the database.")
 
