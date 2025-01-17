@@ -1,10 +1,76 @@
 import sqlite3
 import pandas as pd
 import streamlit as st
+import datetime
+import base64
+import json
+import requests
 
+
+# ========================= GITHUB PUSH FUNCTION =========================
+def upload_file_to_github(
+    github_user: str,
+    github_repo: str,
+    github_pat: str,
+    file_path: str,
+    local_file_path: str,
+    commit_message: str,
+):
+    """
+    Upload or update a file (e.g., 'subtasks.db') in the given GitHub repo.
+    """
+    url = f"https://api.github.com/repos/{github_user}/{github_repo}/contents/{file_path}"
+    headers = {"Authorization": f"Bearer {github_pat}"}
+
+    # Read local file into memory
+    with open(local_file_path, "rb") as file:
+        content = file.read()
+
+    b64_content = base64.b64encode(content).decode("utf-8")
+
+    # Check if file already exists on GitHub to get its 'sha'
+    response = requests.get(url, headers=headers)
+    sha = response.json()["sha"] if response.status_code == 200 else None
+
+    payload = {
+        "message": commit_message,
+        "content": b64_content,
+        "sha": sha,
+    }
+
+    response = requests.put(url, headers=headers, data=json.dumps(payload))
+    if response.status_code in [200, 201]:
+        st.success("Database successfully pushed to GitHub.")
+    else:
+        st.error(f"Failed to upload file to GitHub: {response.status_code}\n{response.text}")
+
+
+def push_db_to_github(commit_message: str = None):
+    """
+    Helper to push 'subtasks.db' to your GitHub repo with a default or custom commit message.
+    """
+    if commit_message is None:
+        commit_message = f"Update subtasks.db at {datetime.datetime.now()}"
+    
+    # Use st.secrets or your own method for these values:
+    github_user = "habdulhaq87"
+    github_repo = "amasdatadriven"
+    github_pat = st.secrets["github"]["pat"]
+
+    upload_file_to_github(
+        github_user=github_user,
+        github_repo=github_repo,
+        github_pat=github_pat,
+        file_path="subtasks.db",       # GitHub path
+        local_file_path="subtasks.db", # Local file
+        commit_message=commit_message,
+    )
+
+
+# ========================= DATABASE SETUP =========================
 def initialize_subtasks_database():
     """
-    Initialize the SQLite database for subtasks.
+    Initialize (or connect to) the SQLite database for subtasks.
     """
     conn = sqlite3.connect("subtasks.db")
     cursor = conn.cursor()
@@ -32,7 +98,7 @@ def initialize_subtasks_database():
 
 def fetch_subtasks_from_db(conn):
     """
-    Fetch all subtasks from the database.
+    Fetch all subtasks from the database as a pandas DataFrame.
     """
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM subtasks")
@@ -43,7 +109,8 @@ def fetch_subtasks_from_db(conn):
 
 def save_subtasks_to_db(conn, subtasks):
     """
-    Save a list of subtasks to the database.
+    Save a list of subtasks to the database (INSERT).
+    Then push the updated 'subtasks.db' to GitHub.
     """
     cursor = conn.cursor()
     for subtask in subtasks:
@@ -70,10 +137,14 @@ def save_subtasks_to_db(conn, subtasks):
         )
     conn.commit()
 
+    # Push the updated DB to GitHub
+    push_db_to_github(commit_message="Add new subtasks.")
+
 
 def update_subtask_in_db(conn, subtask_id, updated_data):
     """
-    Update a subtask in the database.
+    Update a subtask in the database by its ID.
+    Then push the updated 'subtasks.db' to GitHub.
     """
     cursor = conn.cursor()
     cursor.execute(
@@ -100,29 +171,40 @@ def update_subtask_in_db(conn, subtask_id, updated_data):
     )
     conn.commit()
 
+    # Push the updated DB to GitHub
+    push_db_to_github(commit_message=f"Update subtask {subtask_id}.")
+
 
 def delete_subtask_from_db(conn, subtask_id):
     """
     Delete a subtask from the database by its ID.
+    Then push the updated 'subtasks.db' to GitHub.
     """
     cursor = conn.cursor()
     cursor.execute("DELETE FROM subtasks WHERE id = ?", (subtask_id,))
     conn.commit()
 
+    # Push the updated DB to GitHub
+    push_db_to_github(commit_message=f"Delete subtask {subtask_id}.")
 
+
+# ========================= UI FUNCTIONS =========================
 def upload_csv_subtasks(conn):
     """
     Provide a file uploader to import subtasks from a CSV file.
     The CSV is expected to have columns:
-    Category, Aspect, Current Situation, Name, Detail, Start Time, 
-    Outcome, Person Involved, Budget, Deadline, Progress (%)
+      Category, Aspect, Current Situation, Name, Detail, Start Time, 
+      Outcome, Person Involved, Budget, Deadline, Progress (%)
     """
     st.subheader("Upload Subtasks from CSV")
     csv_file = st.file_uploader("Upload CSV", type=["csv"])
 
     if csv_file is not None:
         df = pd.read_csv(csv_file)
-        
+
+        st.write("Preview of uploaded CSV:")
+        st.dataframe(df.head())
+
         if st.button("Import CSV"):
             new_subtasks = []
 
@@ -144,19 +226,23 @@ def upload_csv_subtasks(conn):
 
             # Now save the newly uploaded subtasks to the database
             save_subtasks_to_db(conn, new_subtasks)
-            st.success("CSV subtasks imported successfully!")
+            st.success("CSV subtasks imported and pushed to GitHub successfully!")
 
 
 def render_saved_subtasks(conn):
     """
-    Render the saved subtasks in an interactive Streamlit UI with edit and delete functionality,
-    plus an option to upload subtasks from a CSV file.
+    Render the saved subtasks in an interactive Streamlit UI with:
+      - CSV upload
+      - Edit
+      - Delete
+    Each operation triggers a GitHub push.
     """
     st.subheader("View and Edit Saved Subtasks")
 
     # Allow CSV upload here
     upload_csv_subtasks(conn)
 
+    # Fetch and display existing subtasks
     saved_subtasks = fetch_subtasks_from_db(conn)
 
     if not saved_subtasks.empty:
@@ -178,10 +264,10 @@ def render_saved_subtasks(conn):
 
                 if st.button(f"Save Changes for Subtask {subtask['id']}", key=f"save_{subtask['id']}"):
                     update_subtask_in_db(conn, subtask["id"], updated_data)
-                    st.success(f"Subtask {subtask['id']} updated successfully!")
+                    st.success(f"Subtask {subtask['id']} updated and pushed to GitHub.")
 
                 if st.button(f"Delete Subtask {subtask['id']}", key=f"delete_{subtask['id']}"):
                     delete_subtask_from_db(conn, subtask["id"])
-                    st.success(f"Subtask {subtask['id']} deleted successfully!")
+                    st.success(f"Subtask {subtask['id']} deleted and pushed to GitHub.")
     else:
         st.write("No subtasks found in the database.")
