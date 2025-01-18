@@ -10,7 +10,7 @@ from subtasks import (
     upload_csv_subtasks,
     delete_subtask_from_db,
 )
-from database_phases import render_database_phases_page  # Import the new Database Phases functionality
+from database_phases import render_database_phases_page
 
 
 def upload_file_to_github(
@@ -59,87 +59,62 @@ def get_table_names(conn: sqlite3.Connection):
     return tables
 
 
-def fetch_data_from_table(conn: sqlite3.Connection, table_name: str) -> pd.DataFrame:
+def fetch_budget_data(conn: sqlite3.Connection):
     """
-    Fetch all data from the specified table as a pandas DataFrame.
+    Fetch budget-related data for editing.
     """
-    query = f"SELECT * FROM {table_name}"
+    query = "SELECT id, category, name, budget FROM subtasks"
     return pd.read_sql_query(query, conn)
 
 
-def delete_row_by_id(conn: sqlite3.Connection, table_name: str, row_id: int):
+def update_budget(conn: sqlite3.Connection, task_id: int, new_budget: float):
     """
-    Delete a row by ID from the specified table.
-    Assumes each table has an 'id' column.
+    Update the budget for a specific task in the database.
     """
     cursor = conn.cursor()
-    cursor.execute(f"DELETE FROM {table_name} WHERE id = ?", (row_id,))
+    cursor.execute(
+        "UPDATE subtasks SET budget = ?, budget_last_updated = ? WHERE id = ?",
+        (new_budget, datetime.datetime.now().isoformat(), task_id),
+    )
     conn.commit()
 
 
-def render_add_subtasks_page(conn: sqlite3.Connection):
+def render_budget_page(conn: sqlite3.Connection, github_user, github_repo, github_pat):
     """
-    Page for uploading subtasks via CSV (to the 'subtasks' table).
+    Render the Budget Management Page.
     """
-    st.title("Add Subtasks")
-    st.write("Upload a CSV of subtasks with the required columns.")
-    upload_csv_subtasks(conn)
+    st.title("Budget Management")
 
+    budget_data = fetch_budget_data(conn)
+    if not budget_data.empty:
+        st.write("### Current Budgets")
+        st.dataframe(budget_data)
 
-def render_view_database_page(conn: sqlite3.Connection, github_user, github_repo, github_pat):
-    """
-    Page to view and manage any table in the database.
-    """
-    st.title("View Database")
+        st.write("#### Edit Task Budgets")
+        task_id = st.selectbox("Select a Task ID to Edit", budget_data["id"].unique())
+        task_row = budget_data[budget_data["id"] == task_id].iloc[0]
 
-    # Fetch all table names from the database
-    tables = get_table_names(conn)
-    if not tables:
-        st.write("No tables found in the database.")
-        return
+        st.write(f"**Task Name**: {task_row['name']}")
+        st.write(f"**Current Budget**: {task_row['budget']}")
+        new_budget = st.number_input("Enter New Budget", value=task_row["budget"], step=100.0)
 
-    # Let the user select which table to view
-    selected_table = st.selectbox("Select a table to view", options=tables)
+        if st.button("Update Budget"):
+            update_budget(conn, task_id, new_budget)
+            st.success(f"Budget updated for Task ID {task_id} to {new_budget}")
 
-    if selected_table:
-        # Fetch and display data from the chosen table
-        df = fetch_data_from_table(conn, selected_table)
-
-        if not df.empty:
-            st.write(f"### Table: {selected_table}")
-            st.dataframe(df)
-
-            # Deletion controls
-            st.write("#### Delete a Row by ID")
-            row_id = st.number_input("Enter the ID of the row to delete:", min_value=1, step=1)
-
-            if st.button("Delete"):
-                if "id" in df.columns and row_id in df["id"].values:
-                    # 1) Delete from the local database
-                    delete_row_by_id(conn, selected_table, row_id)
-                    st.success(f"Row with ID {row_id} has been deleted from '{selected_table}'.")
-
-                    # 2) Push the updated database to GitHub
-                    commit_msg = f"Delete row {row_id} from {selected_table} at {datetime.datetime.now()}"
-                    upload_file_to_github(
-                        github_user=github_user,
-                        github_repo=github_repo,
-                        github_pat=github_pat,
-                        file_path="subtasks.db",      # path on GitHub
-                        local_file_path="subtasks.db",# local DB file
-                        commit_message=commit_msg,
-                    )
-
-                    # 3) Refresh and display the updated data
-                    updated_df = fetch_data_from_table(conn, selected_table)
-                    if not updated_df.empty:
-                        st.dataframe(updated_df)
-                    else:
-                        st.write(f"'{selected_table}' is now empty.")
-                else:
-                    st.warning(f"ID {row_id} not found in the '{selected_table}' table.")
-        else:
-            st.write(f"'{selected_table}' table is empty.")
+            # Push the updated database to GitHub
+            commit_msg = f"Updated budget for Task ID {task_id} to {new_budget} at {datetime.datetime.now()}"
+            upload_file_to_github(
+                github_user=github_user,
+                github_repo=github_repo,
+                github_pat=github_pat,
+                file_path="subtasks.db",  # path on GitHub
+                local_file_path="subtasks.db",  # local DB file
+                commit_message=commit_msg,
+            )
+            st.experimental_rerun()
+    else:
+        st.warning("No budget data found in the database.")
 
 
 def render_backend():
@@ -149,8 +124,8 @@ def render_backend():
     conn = initialize_subtasks_database()
 
     # Retrieve GitHub details
-    github_user = "habdulhaq87"  # Example user
-    github_repo = "amasdatadriven"  # Example repo
+    github_user = "habdulhaq87"
+    github_repo = "amasdatadriven"
     github_pat = st.secrets["github"]["pat"]
 
     # Sidebar navigation
@@ -159,6 +134,7 @@ def render_backend():
         "Add Subtasks": lambda c: render_add_subtasks_page(c),
         "View Database": lambda c: render_view_database_page(c, github_user, github_repo, github_pat),
         "Database Phases": lambda _: render_database_phases_page(),
+        "Budget Management": lambda c: render_budget_page(c, github_user, github_repo, github_pat),
     }
     choice = st.sidebar.radio("Go to", list(pages.keys()))
 
