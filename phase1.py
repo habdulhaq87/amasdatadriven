@@ -7,7 +7,7 @@ import json
 import phase1_tasks
 import phase1_summary
 import phase1_budget
-from subdirectory.phase1_budget import render_budget_tab
+from phase1_budget import render_budget_tab
 
 
 def load_lottie_animation(filepath):
