@@ -74,7 +74,7 @@ def fetch_data_from_table(conn: sqlite3.Connection, table_name: str) -> pd.DataF
 # ------------------- BUDGET & TIMELINE FUNCTIONS -------------------
 def fetch_tasks_for_budget_timeline(conn: sqlite3.Connection) -> pd.DataFrame:
     """
-    Fetch tasks from 'subtasks' including Budget, Start Time, and Deadline.
+    Fetch tasks from 'subtasks' including budget, start_time, and Deadline.
     Adjust column names if your DB differs.
     """
     query = """
@@ -122,7 +122,7 @@ def update_task_budget_and_timeline(
 
 def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: str, github_pat: str):
     """
-    Page for managing and editing Budget, Start Time, and End Time for tasks.
+    Page for managing and editing bdget, Start Time, and End Time for tasks.
     """
     st.title("Budget & Timeline Management")
 
@@ -142,7 +142,7 @@ def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: 
 
     # 3) Extract current row data
     row = df.loc[df["id"] == selected_id].iloc[0]
-    current_budget = row["Budget"] if not pd.isna(row["Budget"]) else 0.0
+    current_budget = row["budget"] if not pd.isna(row["budget"]) else 0.0
 
     # Handle date parsing for Start Time
     if isinstance(row["start_time"], str) and row["start_time"]:
@@ -163,7 +163,7 @@ def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: 
         end_date_obj = datetime.date.today()
 
     # 4) Input widgets
-    new_budget = st.number_input("Budget:", value=float(current_budget), step=100.0)
+    new_budget = st.number_input("budget:", value=float(current_budget), step=100.0)
     new_start_date = st.date_input("Start Time:", value=start_date_obj)
     new_end_date = st.date_input("Deadline:", value=end_date_obj)
 
