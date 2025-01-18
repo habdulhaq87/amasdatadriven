@@ -35,7 +35,7 @@ def upload_file_to_github(
 
     b64_content = base64.b64encode(content).decode("utf-8")
 
-    # Check if file exists on GitHub to get 'sha'
+    # Check if file exists on GitHub to get its 'sha'
     response = requests.get(url, headers=headers)
     sha = response.json()["sha"] if response.status_code == 200 else None
 
@@ -101,12 +101,13 @@ def update_task_budget_and_timeline(
     Update the budget, start_time, and deadline for a given task ID.
     """
     cursor = conn.cursor()
+    # If your DB column is actually 'start_time' (no brackets), remove the brackets.
     cursor.execute(
         """
         UPDATE subtasks
         SET
             budget = ?,
-            start_time = ?,
+            [start_time] = ?,
             deadline = ?
         WHERE id = ?
         """,
@@ -122,67 +123,100 @@ def update_task_budget_and_timeline(
 
 def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: str, github_pat: str):
     """
-    Page for managing and editing budget and importing budget data.
+    Page for managing and editing budget, Start Time, and End Time for tasks.
     """
-    st.title("Budget Management")
-    
-    # Tabs for "Edit Budget" and "Import Budget"
-    tab1, tab2 = st.tabs(["Edit Budget", "Import Budget"])
+    st.title("Budget & Timeline Management")
 
-    with tab1:
-        st.subheader("Edit Budget & Timeline")
-        # Fetch tasks
-        df = fetch_tasks_for_budget_timeline(conn)
-        if df.empty:
-            st.warning("No tasks found in the database.")
-            return
+    # 1) Fetch tasks
+    df = fetch_tasks_for_budget_timeline(conn)
+    if df.empty:
+        st.warning("No tasks found in the database.")
+        return
 
-        st.write("Below are the tasks/subtasks, including budgets and timelines:")
-        st.dataframe(df)
+    st.write("Below are the tasks/subtasks, including budgets and timelines:")
+    st.dataframe(df)
 
-        # Select a task to edit
-        task_ids = df["id"].unique()
-        selected_id = st.selectbox("Select a Task ID to edit:", task_ids)
+    # 2) Select a task to edit
+    task_ids = df["id"].unique()
+    selected_id = st.selectbox("Select a Task ID to edit:", task_ids)
 
-        # Extract current row data
-        row = df.loc[df["id"] == selected_id].iloc[0]
-        current_budget = row["budget"] if not pd.isna(row["budget"]) else 0.0
+    # 3) Extract current row data
+    row = df.loc[df["id"] == selected_id].iloc[0]
+    current_budget = row["budget"] if not pd.isna(row["budget"]) else 0.0
 
-        # Parse Start Time
+    # Parse Start Time
+    if isinstance(row["start_time"], str) and row["start_time"]:
+        try:
+            start_date_obj = datetime.datetime.strptime(row["start_time"], "%Y-%m-%d").date()
+        except ValueError:
+            start_date_obj = datetime.date.today()
+    else:
         start_date_obj = datetime.date.today()
-        if isinstance(row["start_time"], str) and row["start_time"]:
-            try:
-                start_date_obj = datetime.datetime.strptime(row["start_time"], "%Y-%m-%d").date()
-            except ValueError:
-                pass
 
-        # Parse Deadline
+    # Parse Deadline
+    if isinstance(row["deadline"], str) and row["deadline"]:
+        try:
+            end_date_obj = datetime.datetime.strptime(row["deadline"], "%Y-%m-%d").date()
+        except ValueError:
+            end_date_obj = datetime.date.today()
+    else:
         end_date_obj = datetime.date.today()
-        if isinstance(row["deadline"], str) and row["deadline"]:
-            try:
-                end_date_obj = datetime.datetime.strptime(row["deadline"], "%Y-%m-%d").date()
-            except ValueError:
-                pass
 
-        # Input widgets
-        new_budget = st.number_input("Budget:", value=float(current_budget), step=100.0)
-        new_start_date = st.date_input("Start Time:", value=start_date_obj)
-        new_end_date = st.date_input("Deadline:", value=end_date_obj)
+    # 4) Input widgets
+    new_budget = st.number_input("budget:", value=float(current_budget), step=100.0)
+    new_start_date = st.date_input("Start Time:", value=start_date_obj)
+    new_end_date = st.date_input("deadline:", value=end_date_obj)
 
-        if st.button("Save Changes"):
-            update_task_budget_and_timeline(conn, selected_id, new_budget, new_start_date, new_end_date)
-            st.success(f"Task ID {selected_id} updated with new budget, start time, and end time.")
-            push_db_to_github(commit_message=f"Updated budget/timeline for Task {selected_id}")
+    # 5) Save Changes button
+    if st.button("Save Changes"):
+        # Update DB
+        update_task_budget_and_timeline(conn, selected_id, new_budget, new_start_date, new_end_date)
+        st.success(f"Task ID {selected_id} updated with new budget, start time, and end time.")
 
-    with tab2:
-        st.subheader("Import Budget Data")
-        st.write("Upload a CSV file with budget data to import into the system.")
-        uploaded_file = st.file_uploader("Choose a CSV file", type=["csv"])
-        if uploaded_file:
-            df = pd.read_csv(uploaded_file)
-            st.write("Preview of uploaded file:")
+        # Push changes to GitHub
+        commit_msg = f"Updated budget/timeline for Task {selected_id} at {datetime.datetime.now()}"
+        upload_file_to_github(
+            github_user=github_user,
+            github_repo=github_repo,
+            github_pat=github_pat,
+            file_path="subtasks.db",
+            local_file_path="subtasks.db",
+            commit_message=commit_msg
+        )
+
+        # No st.experimental_rerun() call. Just show a success message.
+        st.info("Changes saved. You may revisit this page to see updated data.")
+
+
+# ------------------- ADDING SUBTASKS PAGE -------------------
+def render_add_subtasks_page(conn: sqlite3.Connection):
+    """
+    Page for uploading subtasks via CSV (to the 'subtasks' table).
+    """
+    st.title("Add Subtasks")
+    st.write("Upload a CSV with columns matching the 'subtasks' schema.")
+    upload_csv_subtasks(conn)
+
+
+# ------------------- VIEW DATABASE PAGE -------------------
+def render_view_database_page(conn: sqlite3.Connection, github_user, github_repo, github_pat):
+    """
+    Page to view any table in the DB (read-only here).
+    """
+    st.title("View Database")
+    tables = get_table_names(conn)
+    if not tables:
+        st.write("No tables found in the database.")
+        return
+
+    selected_table = st.selectbox("Select a table to view", options=tables)
+    if selected_table:
+        df = fetch_data_from_table(conn, selected_table)
+        if not df.empty:
+            st.write(f"### Table: {selected_table}")
             st.dataframe(df)
-            # Add logic to process and insert data into the database
+        else:
+            st.write(f"'{selected_table}' is empty.")
 
 
 # ------------------- MAIN BACKEND RENDER -------------------
@@ -203,8 +237,8 @@ def render_backend():
         "Add Subtasks": lambda c: render_add_subtasks_page(c),
         "View Database": lambda c: render_view_database_page(c, github_user, github_repo, github_pat),
         "Database Phases": lambda _: render_database_phases_page(),
-        # Budget Management with Tabs
-        "Budget Management": lambda c: render_budget_page(c, github_user, github_repo, github_pat),
+        # Budget & Timeline management
+        "Budget & Timeline": lambda c: render_budget_page(c, github_user, github_repo, github_pat),
     }
     choice = st.sidebar.radio("Go to", list(pages.keys()))
 
