@@ -69,13 +69,18 @@ def render_budget_tab():
 
     st.write("Below are the available budgets for Phase 1 tasks:")
 
-    # Allow the user to select a specific budget table
+    # Ensure session state is initialized for selected table
+    if "selected_table" not in st.session_state:
+        st.session_state.selected_table = None
+
+    # Dropdown to select a budget table
     selected_table = st.selectbox(
         "Select a budget table to view:",
         [table for table in budget_tables if table in task_data["Budget Table"].values],
         format_func=lambda x: task_data.loc[
             task_data["Budget Table"] == x, "name"
         ].values[0],
+        key="selected_table",
     )
 
     if selected_table:
