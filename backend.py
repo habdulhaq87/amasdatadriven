@@ -84,7 +84,7 @@ def fetch_tasks_for_budget_timeline(conn: sqlite3.Connection) -> pd.DataFrame:
         Name,
         budget,
         start_time,
-        Deadline
+        deadline
     FROM subtasks
     """
     return pd.read_sql_query(query, conn)
@@ -107,7 +107,7 @@ def update_task_budget_and_timeline(
         SET
             budget = ?,
             [Start Time] = ?,
-            Deadline = ?
+            deadline = ?
         WHERE id = ?
         """,
         (
