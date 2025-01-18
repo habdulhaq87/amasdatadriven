@@ -105,7 +105,7 @@ def update_task_budget_and_timeline(
         """
         UPDATE subtasks
         SET
-            Budget = ?,
+            budget = ?,
             [Start Time] = ?,
             Deadline = ?
         WHERE id = ?
