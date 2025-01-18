@@ -43,18 +43,23 @@ def upload_file_to_github(
 
 def fetch_tasks(conn: sqlite3.Connection) -> pd.DataFrame:
     """
-    Fetch all tasks or subtasks from the database. Adjust table name/columns as needed.
+    Fetch tasks (or subtasks) from the DB with the actual column names.
+    Adjust these columns if your table differs!
     """
     query = """
     SELECT
-      id,
-      Category,
-      Aspect,
-      [Current Situation] as current_situation,
-      Name,
-      Budget,
-      [Start Time] as start_time,
-      Deadline
+        id,
+        category,
+        aspect,
+        current_situation,
+        name,
+        detail,
+        start_time,
+        outcome,
+        person_involved,
+        budget,
+        deadline,
+        progress
     FROM subtasks
     """
     return pd.read_sql_query(query, conn)
@@ -67,17 +72,17 @@ def update_task_budget_and_timeline(
     new_deadline: datetime.date,
 ):
     """
-    Update budget, start time, and deadline for a given task ID.
+    Update budget, start_time, and deadline for a given task ID.
+    Make sure these columns match your actual DB schema exactly!
     """
     cursor = conn.cursor()
-    # The columns should match your DB schema exactly.
     cursor.execute(
         """
         UPDATE subtasks
         SET
-          Budget = ?,
-          [Start Time] = ?,
-          Deadline = ?
+            budget = ?,
+            start_time = ?,
+            deadline = ?
         WHERE id = ?
         """,
         (
@@ -92,6 +97,7 @@ def update_task_budget_and_timeline(
 def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: str, github_pat: str):
     """
     Streamlit page: Budget & Timeline Management.
+    Allows editing budget, start_time, and deadline in 'subtasks'.
     """
     st.title("Budget & Timeline Management")
 
@@ -102,7 +108,7 @@ def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: 
         st.warning("No tasks found in the database.")
         return
 
-    st.write("Below is the current list of tasks/subtasks with their budget, start time, and deadline:")
+    st.write("Below is the current list of tasks with their budget, start time, and deadline:")
     st.dataframe(df)
 
     # 2) Select a task by ID
@@ -113,14 +119,14 @@ def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: 
     row = df.loc[df["id"] == selected_id].iloc[0]
 
     # 4) Current values
-    current_budget = float(row["Budget"]) if not pd.isna(row["Budget"]) else 0.0
+    current_budget = float(row["budget"]) if not pd.isna(row["budget"]) else 0.0
     current_start_time = row["start_time"] if isinstance(row["start_time"], str) else None
-    current_deadline = row["Deadline"] if isinstance(row["Deadline"], str) else None
+    current_deadline = row["deadline"] if isinstance(row["deadline"], str) else None
 
     # 5) Create input widgets
     new_budget = st.number_input("New Budget:", value=current_budget, step=100.0)
 
-    # If your stored times are strings, convert them to date
+    # Convert stored strings to dates
     try:
         st_time = datetime.datetime.strptime(current_start_time, "%Y-%m-%d").date() if current_start_time else datetime.date.today()
     except:
