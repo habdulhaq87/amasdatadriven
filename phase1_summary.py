@@ -1,104 +1,58 @@
 import streamlit as st
 import pandas as pd
-import datetime
+import plotly.express as px
+from subtasks import (
+    initialize_subtasks_database,
+    fetch_subtasks_from_db
+)
 
 def render_phase1_summary():
     """
-    Provides a high-level summary for Phase 1 data, including
-    - Count of tasks
-    - Aggregated budget
-    - Earliest start date and latest end date
-    - Summaries per category
+    Streamlit UI for Phase 1 Summary with a Gantt chart-style visualization.
     """
+    st.title("Client Dashboard: Phase 1 Summary")
+    st.subheader("Time Schedule and Task Overview")
 
-    st.title("Phase 1: Summary")
+    # Initialize or connect to the database
+    conn = initialize_subtasks_database()
 
-    st.write("""
-    This tab provides **overall** Phase 1 information extracted from `amas_data.csv`, 
-    including activity counts, timelines, and aggregated budgets.
-    """)
+    # Fetch existing tasks from the database
+    tasks = fetch_subtasks_from_db(conn)
 
-    # Load CSV data
-    try:
-        df = pd.read_csv("amas_data.csv", sep=",")
-    except FileNotFoundError:
-        st.error("`amas_data.csv` not found. Please ensure it exists in the app directory.")
+    if tasks.empty:
+        st.write("No tasks available in the database.")
         return
 
-    # Required Phase 1 columns
-    required_cols = [
-        "Category", "Aspect",
-        "Phase1_Person in Charge",
-        "Phase1_Deliverable",
-        "Phase1_Start Date",
-        "Phase1_End Date",
-        "Phase1_Budget"
-    ]
-    # Optional: "Phase1_Charter" can be included if needed for advanced summaries
+    # Prepare data for visualization
+    tasks['start_time'] = pd.to_datetime(tasks['start_time'])
+    tasks['deadline'] = pd.to_datetime(tasks['deadline'])
 
-    # Check columns existence
-    missing = [c for c in required_cols if c not in df.columns]
-    if missing:
-        st.error(f"Missing columns required for Phase 1 summary: {missing}")
-        return
+    # Gantt chart visualization
+    fig = px.timeline(
+        tasks,
+        x_start="start_time",
+        x_end="deadline",
+        y="aspect",
+        color="progress",
+        hover_data=["person_involved", "name", "budget"],
+        title="Task Schedule and Progress",
+    )
+    fig.update_layout(
+        yaxis_title="Aspect",
+        xaxis_title="Timeline",
+        coloraxis_colorbar=dict(
+            title="Progress (%)",
+        ),
+        margin=dict(l=20, r=20, t=40, b=20),
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
-    # Make a copy of relevant columns
-    phase1_df = df[required_cols].copy()
-
-    # Convert dates and budgets to appropriate types
-    phase1_df["Phase1_Start Date"] = pd.to_datetime(phase1_df["Phase1_Start Date"], errors="coerce")
-    phase1_df["Phase1_End Date"] = pd.to_datetime(phase1_df["Phase1_End Date"], errors="coerce")
-    phase1_df["Phase1_Budget"] = pd.to_numeric(phase1_df["Phase1_Budget"], errors="coerce").fillna(0.0)
-
-    # ===== PER-CATEGORY SUMMARY =====
-    st.subheader("Summary by Category")
-
-    # Group by Category, calculating aggregates
-    cat_group = phase1_df.groupby("Category").agg(
-        tasks_count=("Aspect", "count"),
-        earliest_start=("Phase1_Start Date", "min"),
-        latest_end=("Phase1_End Date", "max"),
-        total_budget=("Phase1_Budget", "sum"),
-    ).reset_index()
-
-    # Display a DataFrame with formatted columns
-    # Convert earliest_start, latest_end to string for display if not null
-    cat_group["earliest_start"] = cat_group["earliest_start"].dt.date.astype(str)
-    cat_group["latest_end"] = cat_group["latest_end"].dt.date.astype(str)
-
-    st.dataframe(cat_group.style.format({
-        "total_budget": "{:,.2f}"
-    }), use_container_width=True)
-
-    # ===== OVERALL SUMMARY =====
-    st.subheader("Overall Phase 1 Summary")
-
-    # Calculate total tasks
-    total_tasks = phase1_df["Aspect"].count()
-    total_budget = phase1_df["Phase1_Budget"].sum()
-    earliest_start = phase1_df["Phase1_Start Date"].min()
-    latest_end = phase1_df["Phase1_End Date"].max()
-
-    # Convert to date for display
-    earliest_start_str = earliest_start.date().isoformat() if pd.notnull(earliest_start) else "N/A"
-    latest_end_str = latest_end.date().isoformat() if pd.notnull(latest_end) else "N/A"
-
-    # Display
-    colA, colB = st.columns([1, 1])
-    with colA:
-        st.metric("Total Tasks", total_tasks)
-        st.metric("Earliest Start Date", earliest_start_str)
-    with colB:
-        st.metric("Total Budget", f"${total_budget:,.2f}")
-        st.metric("Latest End Date", latest_end_str)
-
-    st.info("""
-    **Notes**:
-    - **Tasks Count** is the total number of Aspects under Phase 1.
-    - **Earliest/Latest Dates** are derived from all tasks' start/end fields.
-    - **Total Budget** is the sum of `Phase1_Budget` across all tasks.
-    """)
-
+    # Detailed Task Table
+    st.subheader("Detailed Task Information")
+    st.dataframe(
+        tasks[["aspect", "start_time", "deadline", "person_involved", "progress"]],
+        use_container_width=True,
+    )
 
 if __name__ == "__main__":
     render_phase1_summary()
