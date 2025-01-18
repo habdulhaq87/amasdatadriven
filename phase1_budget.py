@@ -26,6 +26,15 @@ def calculate_total_budget(conn, table_name):
     return result[0] if result and result[0] else 0.0
 
 
+def fetch_task_names_and_ids(conn):
+    """Fetch task names and IDs from the subtasks table."""
+    query = """
+    SELECT id, name
+    FROM subtasks;
+    """
+    return pd.read_sql_query(query, conn)
+
+
 def render_budget_tab():
     """Render the Budget tab, consolidating budget tables and providing a summary."""
     st.subheader("Phase 1 Budgets")
@@ -38,13 +47,22 @@ def render_budget_tab():
         conn.close()
         return
 
+    # Fetch task names and IDs from the subtasks table
+    task_data = fetch_task_names_and_ids(conn)
+    task_data["Budget Table"] = task_data["id"].apply(lambda x: f"budget_{x}")
+
     # Summary Section
     st.markdown("### Summary of Phase 1 Budgets")
     summary_data = []
 
     for table in budget_tables:
         total_budget = calculate_total_budget(conn, table)
-        summary_data.append({"Budget Table": table, "Total Cost": total_budget})
+
+        # Map budget table to its corresponding task name
+        task_name = task_data.loc[task_data["Budget Table"] == table, "name"].values
+        task_name = task_name[0] if len(task_name) > 0 else "Unknown Task"
+
+        summary_data.append({"Name": task_name, "Total Cost": total_budget})
 
     summary_df = pd.DataFrame(summary_data)
     st.dataframe(summary_df.style.format({"Total Cost": "{:.2f}"}))
@@ -52,7 +70,13 @@ def render_budget_tab():
     st.write("Below are the available budgets for Phase 1 tasks:")
 
     # Allow the user to select a specific budget table
-    selected_table = st.selectbox("Select a budget table to view:", budget_tables)
+    selected_table = st.selectbox(
+        "Select a budget table to view:",
+        [table for table in budget_tables if table in task_data["Budget Table"].values],
+        format_func=lambda x: task_data.loc[
+            task_data["Budget Table"] == x, "name"
+        ].values[0],
+    )
 
     if selected_table:
         # Fetch and display the data from the selected budget table
