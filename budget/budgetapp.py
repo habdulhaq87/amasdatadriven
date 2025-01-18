@@ -72,49 +72,23 @@ def fetch_tasks(conn: sqlite3.Connection) -> pd.DataFrame:
     SELECT
         id,
         category,
-        aspect,
-        current_situation,
         name,
-        detail,
-        start_time,
-        outcome,
-        person_involved,
-        budget,
-        deadline,
-        progress
+        budget
     FROM subtasks
     """
     return pd.read_sql_query(query, conn)
 
 
-def update_task_budget_and_timeline(
-    conn: sqlite3.Connection,
-    task_id: int,
-    new_budget: float,
-    new_start_time: datetime.date,
-    new_deadline: datetime.date,
-):
+def fetch_budget_lines(conn: sqlite3.Connection, task_id: int) -> pd.DataFrame:
     """
-    Update budget, start_time, and deadline for a given task ID.
+    Fetch budget lines for a specific task ID.
     """
-    cursor = conn.cursor()
-    cursor.execute(
-        """
-        UPDATE subtasks
-        SET
-            budget = ?,
-            start_time = ?,
-            deadline = ?
-        WHERE id = ?
-        """,
-        (
-            new_budget,
-            new_start_time.isoformat() if new_start_time else None,
-            new_deadline.isoformat() if new_deadline else None,
-            task_id,
-        ),
-    )
-    conn.commit()
+    table_name = f"budget_{task_id}"
+    query = f"SELECT * FROM {table_name};"
+    try:
+        return pd.read_sql_query(query, conn)
+    except Exception as e:
+        return None  # Return None if the table does not exist
 
 
 def render_edit_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: str, github_pat: str):
@@ -129,7 +103,7 @@ def render_edit_budget_page(conn: sqlite3.Connection, github_user: str, github_r
         st.warning("No tasks found in the database.")
         return
 
-    st.write("Below is the current list of tasks with their budget, start time, and deadline:")
+    st.write("Below is the current list of tasks with their budget:")
     st.dataframe(df)
 
     # Select a task to edit
@@ -141,50 +115,60 @@ def render_edit_budget_page(conn: sqlite3.Connection, github_user: str, github_r
 
     # Input fields for editing
     current_budget = float(row["budget"]) if not pd.isna(row["budget"]) else 0.0
-    current_start_time = row["start_time"] if isinstance(row["start_time"], str) else None
-    current_deadline = row["deadline"] if isinstance(row["deadline"], str) else None
-
-    def parse_date_or_today(date_str):
-        try:
-            return datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
-        except (TypeError, ValueError):
-            return datetime.date.today()
 
     new_budget = st.number_input("New Budget:", value=current_budget, step=100.0)
-    new_start_date = st.date_input("Start Time:", value=parse_date_or_today(current_start_time))
-    new_deadline_date = st.date_input("Deadline:", value=parse_date_or_today(current_deadline))
 
     # Save changes button
     if st.button("Save Changes"):
-        update_task_budget_and_timeline(conn, selected_id, new_budget, new_start_date, new_deadline_date)
-        st.success(f"Task ID {selected_id} updated with new budget, start time, and deadline.")
+        query = "UPDATE subtasks SET budget = ? WHERE id = ?;"
+        conn.execute(query, (new_budget, selected_id))
+        conn.commit()
 
-        push_db_to_github(commit_message=f"Updated Task ID {selected_id}: Budget/Timeline changes")
-        st.info("Changes saved. Refresh the page to see the updates.")
+        st.success(f"Task ID {selected_id} updated with new budget.")
+        push_db_to_github(commit_message=f"Updated Task ID {selected_id}: Budget changes")
 
 
-def render_import_budget_page():
+def render_view_budget_lines_page(conn: sqlite3.Connection):
     """
-    Tab: Import Budget
-    Placeholder for budget import functionality.
+    Tab: View Budget Lines
     """
-    st.subheader("Import Budget")
-    st.write("This functionality is under development.")
+    st.subheader("View Budget Lines")
+
+    # Fetch tasks from the DB
+    df = fetch_tasks(conn)
+    if df.empty:
+        st.warning("No tasks found in the database.")
+        return
+
+    st.write("Below are the available tasks with budgets:")
+    st.dataframe(df)
+
+    # Select a task to view budget lines
+    task_ids = df["id"].unique()
+    selected_id = st.selectbox("Select a Task ID to view budget lines:", task_ids)
+
+    # Fetch budget lines for the selected task
+    budget_lines = fetch_budget_lines(conn, selected_id)
+    if budget_lines is None:
+        st.warning(f"No budget lines found for Task ID {selected_id}.")
+    else:
+        st.write(f"Budget Lines for Task ID {selected_id}:")
+        st.dataframe(budget_lines)
 
 
 def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: str, github_pat: str):
     """
-    Main function to render the budget page with two tabs.
+    Main function to render the budget page with three tabs.
     """
     st.title("Budget Management")
 
-    tab1, tab2 = st.tabs(["Edit Budget", "Import Budget"])
+    tab1, tab2 = st.tabs(["Edit Budget", "View Budget Lines"])
 
     with tab1:
         render_edit_budget_page(conn, github_user, github_repo, github_pat)
 
     with tab2:
-        render_import_budget_page()
+        render_view_budget_lines_page(conn)
 
 
 def main():
