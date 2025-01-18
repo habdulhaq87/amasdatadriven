@@ -1,7 +1,6 @@
-
-
 import streamlit as st
 import pandas as pd
+import sqlite3
 from streamlit_lottie import st_lottie
 import json
 
@@ -9,26 +8,76 @@ import json
 import phase1_tasks
 import phase1_summary
 
+
 def load_lottie_animation(filepath):
     """Load a Lottie animation from a JSON file."""
     with open(filepath, "r") as f:
         return json.load(f)
+
+
+def fetch_budget_table_names(conn):
+    """Fetch all table names in the database that match the 'budget_{id}' pattern."""
+    query = """
+    SELECT name
+    FROM sqlite_master
+    WHERE type='table' AND name LIKE 'budget_%';
+    """
+    return [row[0] for row in conn.execute(query).fetchall()]
+
+
+def fetch_budget_data(conn, table_name):
+    """Fetch data from a specific budget table."""
+    query = f"SELECT * FROM {table_name};"
+    return pd.read_sql_query(query, conn)
+
+
+def render_budget_tab():
+    """Render the Budget tab, consolidating budget tables."""
+    st.subheader("Phase 1 Budgets")
+
+    conn = sqlite3.connect("subtasks.db")
+    budget_tables = fetch_budget_table_names(conn)
+
+    if not budget_tables:
+        st.warning("No budget tables found in the database.")
+        conn.close()
+        return
+
+    st.write("Below are the available budgets for Phase 1 tasks:")
+
+    # Allow the user to select a specific budget table
+    selected_table = st.selectbox("Select a budget table to view:", budget_tables)
+
+    if selected_table:
+        # Fetch and display the data from the selected budget table
+        budget_data = fetch_budget_data(conn, selected_table)
+
+        if budget_data.empty:
+            st.warning(f"No data found in {selected_table}.")
+        else:
+            st.write(f"**Details for {selected_table}:**")
+            st.dataframe(budget_data)
+
+    # Close the connection
+    conn.close()
+
 
 def render_phase1():
     # Title and Introduction
     st.title("Phase 1: Early & Doable Improvements")
     st.write("""
     This section outlines how AMAS Hypermarket can **move from the current situation** 
-    to the **Phase 1** improvements. Three tabs are available below:
+    to the **Phase 1** improvements. Four tabs are available below:
     
     - **Plan**: Detailed comparison of current vs. Phase 1 improvements.
     - **Tasks**: Shows the relevant Phase 1 tasks, including Person in Charge, Deliverables, 
       timelines, budgets, and more.
     - **Summary**: A high-level summary of Phase 1 activities, including timelines and budget.
+    - **Budget**: Consolidated view of Phase 1 budgets for all subtasks.
     """)
 
-    # Create three tabs: Plan, Tasks, Summary
-    tab_plan, tab_tasks, tab_summary = st.tabs(["Plan", "Tasks", "Summary"])
+    # Create four tabs: Plan, Tasks, Summary, Budget
+    tab_plan, tab_tasks, tab_summary, tab_budget = st.tabs(["Plan", "Tasks", "Summary", "Budget"])
 
     # --- PLAN TAB ---
     with tab_plan:
@@ -127,6 +176,10 @@ def render_phase1():
         categories, tasks, timelines, and budgets.
         """)
         phase1_summary.render_phase1_summary()
+
+    # --- BUDGET TAB ---
+    with tab_budget:
+        render_budget_tab()
 
 
 if __name__ == "__main__":
