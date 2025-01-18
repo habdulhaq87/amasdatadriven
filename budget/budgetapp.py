@@ -143,54 +143,81 @@ def sync_budget(conn: sqlite3.Connection, task_id: int):
     conn.commit()
 
 
-def edit_budget_line(conn: sqlite3.Connection, task_id: int):
+def render_edit_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: str, github_pat: str):
     """
-    Edit or delete specific budget lines for a task ID.
+    Tab: Edit Budget
     """
-    table_name = f"budget_{task_id}"
-    budget_lines = fetch_budget_lines(conn, task_id)
+    st.subheader("Edit Budget")
 
-    if budget_lines is None or budget_lines.empty:
-        st.warning(f"No budget lines found for Task ID {task_id}.")
+    df = fetch_tasks(conn)
+    if df.empty:
+        st.warning("No tasks found in the database.")
         return
 
-    st.write(f"Budget Lines for Task ID {task_id}:")
-    st.dataframe(budget_lines)
+    st.write("Below is the current list of tasks with their budget:")
+    st.dataframe(df)
 
-    # Select a budget line to edit
-    line_item_ids = budget_lines["line_item_id"].unique()
-    selected_line_item_id = st.selectbox("Select a Line Item ID to edit:", line_item_ids)
+    task_ids = df["id"].unique()
+    selected_id = st.selectbox("Select a Task ID to edit:", task_ids)
 
-    selected_line = budget_lines[budget_lines["line_item_id"] == selected_line_item_id].iloc[0]
+    row = df.loc[df["id"] == selected_id].iloc[0]
+    current_budget = float(row["budget"]) if not pd.isna(row["budget"]) else 0.0
 
-    # Edit inputs
-    item = st.text_input("Item", value=selected_line["item"])
-    detail = st.text_input("Detail", value=selected_line["detail"])
-    unit = st.text_input("Unit", value=selected_line["unit"])
-    quantity = st.number_input("Quantity", value=float(selected_line["quantity"]))
-    unit_cost = st.number_input("Unit Cost", value=float(selected_line["unit_cost"]))
-    total_cost = quantity * unit_cost
-    notes = st.text_area("Notes", value=selected_line["notes"])
+    new_budget = st.number_input("New Budget:", value=current_budget, step=100.0)
 
     if st.button("Save Changes"):
-        query = f"""
-        UPDATE {table_name}
-        SET item = ?, detail = ?, unit = ?, quantity = ?, unit_cost = ?, total_cost = ?, notes = ?
-        WHERE line_item_id = ?;
-        """
-        conn.execute(query, (item, detail, unit, quantity, unit_cost, total_cost, notes, selected_line_item_id))
+        query = "UPDATE subtasks SET budget = ? WHERE id = ?;"
+        conn.execute(query, (new_budget, selected_id))
         conn.commit()
-        sync_budget(conn, task_id)
-        st.success(f"Line Item ID {selected_line_item_id} updated successfully.")
-        push_db_to_github(commit_message=f"Updated budget line for Task ID {task_id}")
 
-    if st.button("Delete Line Item"):
-        delete_query = f"DELETE FROM {table_name} WHERE line_item_id = ?;"
-        conn.execute(delete_query, (selected_line_item_id,))
-        conn.commit()
-        sync_budget(conn, task_id)
-        st.success(f"Line Item ID {selected_line_item_id} deleted successfully.")
-        push_db_to_github(commit_message=f"Deleted budget line for Task ID {task_id}")
+        st.success(f"Task ID {selected_id} updated with new budget.")
+        push_db_to_github(commit_message=f"Updated Task ID {selected_id}: Budget changes")
+
+
+def render_view_budget_lines_page(conn: sqlite3.Connection):
+    """
+    Tab: View Budget Lines
+    """
+    st.subheader("View Budget Lines")
+
+    df = fetch_tasks(conn)
+    if df.empty:
+        st.warning("No tasks found in the database.")
+        return
+
+    st.write("Below are the available tasks with budgets:")
+    st.dataframe(df)
+
+    task_ids = df["id"].unique()
+    selected_id = st.selectbox("Select a Task ID to view budget lines:", task_ids)
+
+    create_budget_line_table(conn, selected_id)
+
+    budget_lines = fetch_budget_lines(conn, selected_id)
+    if budget_lines is None or budget_lines.empty:
+        st.warning(f"No budget lines found for Task ID {selected_id}.")
+    else:
+        st.write(f"Budget Lines for Task ID {selected_id}:")
+        st.dataframe(budget_lines)
+
+    st.subheader("Upload Budget Details")
+    uploaded_file = st.file_uploader("Upload a CSV file with budget details:", type="csv")
+
+    if uploaded_file is not None:
+        budget_data = pd.read_csv(uploaded_file)
+        expected_columns = ["Item", "Detail", "Unit", "Quantity", "Unit Cost", "Total Cost", "Notes"]
+        if not all(column in budget_data.columns for column in expected_columns):
+            st.error(f"Invalid CSV format. Expected columns: {', '.join(expected_columns)}")
+        else:
+            st.write("Uploaded Budget Details:")
+            st.dataframe(budget_data)
+
+            if st.button("Save Budget Details"):
+                insert_budget_lines(conn, selected_id, budget_data)
+                st.success(f"Budget details for Task ID {selected_id} saved successfully!")
+
+                # Push the updated database to GitHub
+                push_db_to_github(commit_message=f"Updated budget lines for Task ID {selected_id}")
 
 
 def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: str, github_pat: str):
@@ -199,22 +226,13 @@ def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: 
     """
     st.title("Budget Management")
 
-    tab1, tab2, tab3 = st.tabs(["Edit Budget", "View Budget Lines", "Edit Budget Line"])
+    tab1, tab2 = st.tabs(["Edit Budget", "View Budget Lines"])
 
     with tab1:
         render_edit_budget_page(conn, github_user, github_repo, github_pat)
 
     with tab2:
         render_view_budget_lines_page(conn)
-
-    with tab3:
-        df = fetch_tasks(conn)
-        if df.empty:
-            st.warning("No tasks found in the database.")
-            return
-        task_ids = df["id"].unique()
-        selected_task_id = st.selectbox("Select a Task ID to edit budget lines:", task_ids)
-        edit_budget_line(conn, selected_task_id)
 
 
 def main():
