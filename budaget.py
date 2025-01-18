@@ -121,12 +121,12 @@ def update_task_budget_and_timeline(
 
 def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: str, github_pat: str):
     """
-    Streamlit page: Budget & Timeline Management.
+    Streamlit page: Budget Management.
     Allows editing budget, start_time, and deadline in 'subtasks'.
     """
-    st.title("Budget & Timeline Management")
+    st.title("Budget Management")
 
-    # 1) Fetch tasks from the DB
+    # Fetch tasks from the DB
     df = fetch_tasks(conn)
     if df.empty:
         st.warning("No tasks found in the database.")
@@ -135,19 +135,19 @@ def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: 
     st.write("Below is the current list of tasks with their budget, start time, and deadline:")
     st.dataframe(df)
 
-    # 2) Let the user choose a task to edit
+    # Let the user choose a task to edit
     task_ids = df["id"].unique()
     selected_id = st.selectbox("Select a Task ID to edit:", task_ids)
 
-    # 3) Retrieve the row for that selected ID
+    # Retrieve the row for that selected ID
     row = df.loc[df["id"] == selected_id].iloc[0]
 
-    # 4) Current values
+    # Current values
     current_budget = float(row["budget"]) if not pd.isna(row["budget"]) else 0.0
     current_start_time = row["start_time"] if isinstance(row["start_time"], str) else None
     current_deadline = row["deadline"] if isinstance(row["deadline"], str) else None
 
-    # 5) Input widgets
+    # Input widgets
     new_budget = st.number_input("New Budget:", value=current_budget, step=100.0)
 
     # Convert stored strings to date
@@ -163,7 +163,7 @@ def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: 
     new_start_date = st.date_input("Start Time:", value=start_value)
     new_deadline_date = st.date_input("Deadline:", value=deadline_value)
 
-    # 6) Button to update
+    # Button to update
     if st.button("Save Changes"):
         # Update in DB
         update_task_budget_and_timeline(conn, selected_id, new_budget, new_start_date, new_deadline_date)
@@ -172,6 +172,23 @@ def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: 
         # Push changes to GitHub
         push_db_to_github(commit_message=f"Updated Task ID {selected_id}: Budget/Timeline changes")
 
-        # Since older Streamlit versions may not have st.experimental_rerun,
-        # just display a success message or let user re-open the page if needed.
-        st.info("Changes saved. Refresh or revisit the page to see updated data.")
+
+def render_import_budget_page():
+    """
+    Placeholder for the 'Import Budget' tab.
+    """
+    st.title("Import Budget")
+    st.write("This is a placeholder for the Import Budget functionality. It will be implemented in the future.")
+
+
+def render_budget_tabs(conn: sqlite3.Connection, github_user: str, github_repo: str, github_pat: str):
+    """
+    Renders two tabs: Budget and Import Budget.
+    """
+    tabs = st.tabs(["Budget", "Import Budget"])
+
+    with tabs[0]:
+        render_budget_page(conn, github_user, github_repo, github_pat)
+
+    with tabs[1]:
+        render_import_budget_page()
