@@ -90,23 +90,26 @@ def render_budget_line_page():
     uploaded_file = st.file_uploader("Upload a CSV file with budget details:", type="csv")
 
     if uploaded_file is not None:
-        # Read the uploaded CSV
-        budget_data = pd.read_csv(uploaded_file)
+        try:
+            # Read the uploaded CSV
+            budget_data = pd.read_csv(uploaded_file)
 
-        # Validate the uploaded data
-        expected_columns = ["Item", "Detail", "Unit", "Quantity", "Unit Cost", "Total Cost", "Notes"]
-        if not all(column in budget_data.columns for column in expected_columns):
-            st.error(f"Invalid CSV format. Expected columns: {', '.join(expected_columns)}")
-        else:
-            st.write("Uploaded Budget Details:")
-            st.dataframe(budget_data)
+            # Validate the uploaded data
+            expected_columns = ["Item", "Detail", "Unit", "Quantity", "Unit Cost", "Total Cost", "Notes"]
+            if not all(column in budget_data.columns for column in expected_columns):
+                st.error(f"Invalid CSV format. Expected columns: {', '.join(expected_columns)}")
+            else:
+                st.write("Uploaded Budget Details:")
+                st.dataframe(budget_data)
 
-            # Insert the budget details into the budget line table
-            if st.button("Save Budget Details"):
-                insert_budget_lines(conn, selected_task_id, budget_data)
-                update_main_budget(conn, selected_task_id)
-                st.success(f"Budget details for Task ID {selected_task_id} saved successfully!")
-                st.info("Main budget updated in the subtasks table.")
+                # Insert the budget details into the budget line table
+                if st.button("Save Budget Details"):
+                    insert_budget_lines(conn, selected_task_id, budget_data)
+                    update_main_budget(conn, selected_task_id)
+                    st.success(f"Budget details for Task ID {selected_task_id} saved successfully!")
+                    st.info("Main budget updated in the subtasks table.")
+        except Exception as e:
+            st.error(f"Error processing the uploaded file: {e}")
 
     # Close the database connection
     conn.close()
