@@ -7,6 +7,7 @@ import base64
 import json
 import requests
 
+
 def upload_file_to_github(
     github_user: str,
     github_repo: str,
@@ -41,6 +42,28 @@ def upload_file_to_github(
     else:
         st.error(f"Failed to upload file to GitHub: {response.status_code}\n{response.text}")
 
+
+def push_db_to_github(commit_message: str = None):
+    """
+    Helper to push 'subtasks.db' to your GitHub repo with a default or custom commit message.
+    """
+    if commit_message is None:
+        commit_message = f"Update subtasks.db at {datetime.datetime.now()}"
+
+    github_user = "habdulhaq87"
+    github_repo = "amasdatadriven"
+    github_pat = st.secrets["github"]["pat"]
+
+    upload_file_to_github(
+        github_user=github_user,
+        github_repo=github_repo,
+        github_pat=github_pat,
+        file_path="subtasks.db",       # GitHub path
+        local_file_path="subtasks.db", # Local file
+        commit_message=commit_message,
+    )
+
+
 def fetch_tasks(conn: sqlite3.Connection) -> pd.DataFrame:
     """
     Fetch tasks (or subtasks) from the DB with the actual column names.
@@ -63,6 +86,7 @@ def fetch_tasks(conn: sqlite3.Connection) -> pd.DataFrame:
     FROM subtasks
     """
     return pd.read_sql_query(query, conn)
+
 
 def update_task_budget_and_timeline(
     conn: sqlite3.Connection,
@@ -94,7 +118,8 @@ def update_task_budget_and_timeline(
     )
     conn.commit()
 
-def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: str, github_pat: str):
+
+def render_budget_page(conn: sqlite3.Connection):
     """
     Streamlit page: Budget & Timeline Management.
     Allows editing budget, start_time, and deadline in 'subtasks'.
@@ -146,16 +171,8 @@ def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: 
         update_task_budget_and_timeline(conn, selected_id, new_budget, new_start_date, new_deadline_date)
         st.success(f"Task ID {selected_id} updated with new budget, start time, and deadline.")
 
-        # 7) Optional: push to GitHub
-        commit_msg = f"Updated budget/timeline for Task ID {selected_id} at {datetime.datetime.now()}"
-        upload_file_to_github(
-            github_user=github_user,
-            github_repo=github_repo,
-            github_pat=github_pat,
-            file_path="subtasks.db",
-            local_file_path="subtasks.db",
-            commit_message=commit_msg,
-        )
+        # Push to GitHub
+        push_db_to_github(commit_message=f"Updated Task ID {selected_id}: Budget/Timeline changes")
 
-        # 8) Refresh display
+        # Refresh display
         st.experimental_rerun()
