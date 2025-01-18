@@ -39,7 +39,6 @@ def main():
         "Current Stage": "Current Stage",
         "Vision": "Vision",
         "Phase 1": "Phase 1",
-        "Report": "Report",  # New entry
     }
 
     # Create buttons in the sidebar and update the active page
@@ -48,9 +47,19 @@ def main():
         if st.sidebar.button(page_name):
             active_page = page_name
 
-    # Add custom-styled buttons for Database and Budget under "Report"
+    # --- Quick Links Section ---
     st.sidebar.markdown("<hr>", unsafe_allow_html=True)
     st.sidebar.markdown("<h4>Quick Links</h4>", unsafe_allow_html=True)
+
+    # Report button
+    if st.sidebar.button("Report", key="report_link"):
+        st.sidebar.markdown(
+            '<a href="https://amasreport.streamlit.app/" target="_blank" '
+            'style="display: block; text-align: center; background-color: #e0e0e0; padding: 10px; border-radius: 5px; color: black; text-decoration: none;">Go to Report</a>',
+            unsafe_allow_html=True,
+        )
+
+    # Database button
     if st.sidebar.button("Database", key="db_link"):
         st.sidebar.markdown(
             '<a href="https://amasbackend.streamlit.app/" target="_blank" '
@@ -58,6 +67,7 @@ def main():
             unsafe_allow_html=True,
         )
 
+    # Budget button
     if st.sidebar.button("Budget", key="budget_link"):
         st.sidebar.markdown(
             '<a href="https://budgetapp.streamlit.app/" target="_blank" '
@@ -77,9 +87,6 @@ def main():
 
     elif active_page == "Phase 1":
         phase1.render_phase1()
-
-    elif active_page == "Report":
-        report.render_report()  # Call the report module
 
 if __name__ == "__main__":
     main()
