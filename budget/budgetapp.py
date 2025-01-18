@@ -165,10 +165,10 @@ def render_edit_budget_page(conn: sqlite3.Connection, github_user: str, github_r
 
 def render_import_budget_page():
     """
-    Tab: Import Budget
+    Tab: Budget Line
     Placeholder for budget import functionality.
     """
-    st.subheader("Import Budget")
+    st.subheader("Budget Line")
     st.write("This functionality is under development.")
 
 
@@ -178,7 +178,7 @@ def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: 
     """
     st.title("Budget Management")
 
-    tab1, tab2 = st.tabs(["Edit Budget", "Import Budget"])
+    tab1, tab2 = st.tabs(["Edit Budget", "Budget Line"])
 
     with tab1:
         render_edit_budget_page(conn, github_user, github_repo, github_pat)
