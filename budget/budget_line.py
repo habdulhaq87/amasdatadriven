@@ -1,7 +1,7 @@
 import streamlit as st
 import sqlite3
 import pandas as pd
-import os
+import datetime
 
 # Initialize the database connection
 def initialize_db():
@@ -53,6 +53,45 @@ def update_main_budget(conn, task_id):
     update_query = "UPDATE subtasks SET budget = ? WHERE id = ?;"
     conn.execute(update_query, (total_budget, task_id))
     conn.commit()
+
+# GitHub Push Function
+def push_db_to_github(commit_message: str = None):
+    """
+    Helper to push 'subtasks.db' to your GitHub repo with a default or custom commit message.
+    """
+    if commit_message is None:
+        commit_message = f"Update subtasks.db at {datetime.datetime.now()}"
+
+    github_user = "habdulhaq87"
+    github_repo = "amasdatadriven"
+    github_pat = st.secrets["github"]["pat"]
+
+    import base64
+    import json
+    import requests
+
+    url = f"https://api.github.com/repos/{github_user}/{github_repo}/contents/subtasks.db"
+    headers = {"Authorization": f"Bearer {github_pat}"}
+
+    with open("subtasks.db", "rb") as file:
+        content = file.read()
+    b64_content = base64.b64encode(content).decode("utf-8")
+
+    # Check if the file exists on GitHub to get 'sha'
+    response = requests.get(url, headers=headers)
+    sha = response.json()["sha"] if response.status_code == 200 else None
+
+    payload = {
+        "message": commit_message,
+        "content": b64_content,
+        "sha": sha,
+    }
+
+    response = requests.put(url, headers=headers, data=json.dumps(payload))
+    if response.status_code in [200, 201]:
+        st.success("Database successfully pushed to GitHub.")
+    else:
+        st.error(f"Failed to upload file to GitHub: {response.status_code}\n{response.text}")
 
 # Render the Streamlit interface
 def render_budget_line_page():
@@ -108,6 +147,9 @@ def render_budget_line_page():
                     update_main_budget(conn, selected_task_id)
                     st.success(f"Budget details for Task ID {selected_task_id} saved successfully!")
                     st.info("Main budget updated in the subtasks table.")
+
+                    # Push changes to GitHub
+                    push_db_to_github(commit_message=f"Updated budget lines for Task ID {selected_task_id}")
         except Exception as e:
             st.error(f"Error processing the uploaded file: {e}")
 
