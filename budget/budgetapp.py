@@ -3,8 +3,6 @@ import streamlit as st
 import pandas as pd
 import sqlite3
 import datetime
-import base64
-import json
 import requests
 
 
@@ -26,7 +24,6 @@ def upload_file_to_github(
         content = file.read()
     b64_content = base64.b64encode(content).decode("utf-8")
 
-    # Check if the file exists on GitHub to get 'sha'
     response = requests.get(url, headers=headers)
     sha = response.json()["sha"] if response.status_code == 200 else None
 
@@ -58,8 +55,8 @@ def push_db_to_github(commit_message: str = None):
         github_user=github_user,
         github_repo=github_repo,
         github_pat=github_pat,
-        file_path="subtasks.db",       # GitHub path
-        local_file_path="subtasks.db", # Local file
+        file_path="subtasks.db",
+        local_file_path="subtasks.db",
         commit_message=commit_message,
     )
 
@@ -91,13 +88,50 @@ def fetch_budget_lines(conn: sqlite3.Connection, task_id: int) -> pd.DataFrame:
         return None  # Return None if the table does not exist
 
 
+def create_budget_line_table(conn: sqlite3.Connection, task_id: int):
+    """
+    Create a budget line table for a specific task ID.
+    """
+    table_name = f"budget_{task_id}"
+    query = f"""
+    CREATE TABLE IF NOT EXISTS {table_name} (
+        line_item_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        item TEXT,
+        detail TEXT,
+        unit TEXT,
+        quantity REAL,
+        unit_cost REAL,
+        total_cost REAL,
+        notes TEXT
+    );
+    """
+    conn.execute(query)
+    conn.commit()
+
+
+def insert_budget_lines(conn: sqlite3.Connection, task_id: int, budget_data: pd.DataFrame):
+    """
+    Insert budget lines into the corresponding budget line table.
+    """
+    table_name = f"budget_{task_id}"
+    query = f"""
+    INSERT INTO {table_name} (item, detail, unit, quantity, unit_cost, total_cost, notes)
+    VALUES (?, ?, ?, ?, ?, ?, ?);
+    """
+    for _, row in budget_data.iterrows():
+        conn.execute(query, (
+            row["Item"], row["Detail"], row["Unit"], row["Quantity"],
+            row["Unit Cost"], row["Total Cost"], row["Notes"]
+        ))
+    conn.commit()
+
+
 def render_edit_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: str, github_pat: str):
     """
     Tab: Edit Budget
     """
     st.subheader("Edit Budget")
 
-    # Fetch tasks from the DB
     df = fetch_tasks(conn)
     if df.empty:
         st.warning("No tasks found in the database.")
@@ -106,19 +140,14 @@ def render_edit_budget_page(conn: sqlite3.Connection, github_user: str, github_r
     st.write("Below is the current list of tasks with their budget:")
     st.dataframe(df)
 
-    # Select a task to edit
     task_ids = df["id"].unique()
     selected_id = st.selectbox("Select a Task ID to edit:", task_ids)
 
-    # Retrieve the row for the selected ID
     row = df.loc[df["id"] == selected_id].iloc[0]
-
-    # Input fields for editing
     current_budget = float(row["budget"]) if not pd.isna(row["budget"]) else 0.0
 
     new_budget = st.number_input("New Budget:", value=current_budget, step=100.0)
 
-    # Save changes button
     if st.button("Save Changes"):
         query = "UPDATE subtasks SET budget = ? WHERE id = ?;"
         conn.execute(query, (new_budget, selected_id))
@@ -134,7 +163,6 @@ def render_view_budget_lines_page(conn: sqlite3.Connection):
     """
     st.subheader("View Budget Lines")
 
-    # Fetch tasks from the DB
     df = fetch_tasks(conn)
     if df.empty:
         st.warning("No tasks found in the database.")
@@ -143,22 +171,38 @@ def render_view_budget_lines_page(conn: sqlite3.Connection):
     st.write("Below are the available tasks with budgets:")
     st.dataframe(df)
 
-    # Select a task to view budget lines
     task_ids = df["id"].unique()
     selected_id = st.selectbox("Select a Task ID to view budget lines:", task_ids)
 
-    # Fetch budget lines for the selected task
+    create_budget_line_table(conn, selected_id)
+
     budget_lines = fetch_budget_lines(conn, selected_id)
-    if budget_lines is None:
+    if budget_lines is None or budget_lines.empty:
         st.warning(f"No budget lines found for Task ID {selected_id}.")
     else:
         st.write(f"Budget Lines for Task ID {selected_id}:")
         st.dataframe(budget_lines)
 
+    st.subheader("Upload Budget Details")
+    uploaded_file = st.file_uploader("Upload a CSV file with budget details:", type="csv")
+
+    if uploaded_file is not None:
+        budget_data = pd.read_csv(uploaded_file)
+        expected_columns = ["Item", "Detail", "Unit", "Quantity", "Unit Cost", "Total Cost", "Notes"]
+        if not all(column in budget_data.columns for column in expected_columns):
+            st.error(f"Invalid CSV format. Expected columns: {', '.join(expected_columns)}")
+        else:
+            st.write("Uploaded Budget Details:")
+            st.dataframe(budget_data)
+
+            if st.button("Save Budget Details"):
+                insert_budget_lines(conn, selected_id, budget_data)
+                st.success(f"Budget details for Task ID {selected_id} saved successfully!")
+
 
 def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: str, github_pat: str):
     """
-    Main function to render the budget page with three tabs.
+    Main function to render the budget page with tabs.
     """
     st.title("Budget Management")
 
@@ -174,10 +218,7 @@ def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: 
 def main():
     st.set_page_config(page_title="Budget Management", layout="wide")
 
-    # Initialize SQLite connection
     conn = sqlite3.connect("subtasks.db")
-
-    # GitHub credentials
     github_user = "habdulhaq87"
     github_repo = "amasdatadriven"
     github_pat = st.secrets["github"]["pat"]
