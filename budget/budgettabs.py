@@ -143,6 +143,17 @@ def sync_budget(conn: sqlite3.Connection, task_id: int):
     conn.commit()
 
 
+def delete_budget_line(conn: sqlite3.Connection, task_id: int, line_item_id: int):
+    """
+    Delete a specific budget line by line_item_id from the budget_<task_id> table and sync the main budget.
+    """
+    table_name = f"budget_{task_id}"
+    query = f"DELETE FROM {table_name} WHERE line_item_id = ?;"
+    conn.execute(query, (line_item_id,))
+    conn.commit()
+    sync_budget(conn, task_id)
+
+
 def render_edit_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: str, github_pat: str):
     """
     Tab: Edit Budget
@@ -189,7 +200,7 @@ def render_view_budget_lines_page(conn: sqlite3.Connection):
     st.dataframe(df)
 
     task_ids = df["id"].unique()
-    selected_id = st.selectbox("Select a Task ID to view budget lines:", task_ids)
+    selected_id = st.selectbox("Select a Task ID to view and modify budget lines:", task_ids)
 
     create_budget_line_table(conn, selected_id)
 
@@ -200,23 +211,14 @@ def render_view_budget_lines_page(conn: sqlite3.Connection):
         st.write(f"Budget Lines for Task ID {selected_id}:")
         st.dataframe(budget_lines)
 
-    st.subheader("Upload Budget Details")
-    uploaded_file = st.file_uploader("Upload a CSV file with budget details:", type="csv")
+        st.write("To delete a row, select the line_item_id below:")
+        line_item_ids = budget_lines["line_item_id"].tolist()
+        selected_line_item_id = st.selectbox("Select line_item_id to delete:", line_item_ids)
 
-    if uploaded_file is not None:
-        budget_data = pd.read_csv(uploaded_file)
-        expected_columns = ["Item", "Detail", "Unit", "Quantity", "Unit Cost", "Total Cost", "Notes"]
-        if not all(column in budget_data.columns for column in expected_columns):
-            st.error(f"Invalid CSV format. Expected columns: {', '.join(expected_columns)}")
-        else:
-            st.write("Uploaded Budget Details:")
-            st.dataframe(budget_data)
-
-            if st.button("Save Budget Details"):
-                insert_budget_lines(conn, selected_id, budget_data)
-                st.success(f"Budget details for Task ID {selected_id} saved successfully!")
-
-                push_db_to_github(commit_message=f"Updated budget lines for Task ID {selected_id}")
+        if st.button("Delete Selected Line"):
+            delete_budget_line(conn, selected_id, selected_line_item_id)
+            st.success(f"Line Item {selected_line_item_id} deleted successfully!")
+            push_db_to_github(commit_message=f"Deleted Line Item {selected_line_item_id} for Task ID {selected_id}")
 
 
 def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: str, github_pat: str):
@@ -225,7 +227,7 @@ def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: 
     """
     st.title("Budget Management")
 
-    tab1, tab2 = st.tabs(["Edit Budget", "View Budget Lines"])
+    tab1, tab2 = st.tabs(["Edit Budget", "View & Modify Budget Lines"])
 
     with tab1:
         render_edit_budget_page(conn, github_user, github_repo, github_pat)
