@@ -26,12 +26,9 @@ def calculate_total_budget(conn, table_name):
     return result[0] if result and result[0] else 0.0
 
 
-def fetch_task_names_and_ids(conn):
-    """Fetch task names and IDs from the subtasks table."""
-    query = """
-    SELECT id, name
-    FROM subtasks;
-    """
+def fetch_task_names(conn):
+    """Fetch the ID and name of tasks from the 'subtasks' table."""
+    query = "SELECT id, name FROM subtasks;"
     return pd.read_sql_query(query, conn)
 
 
@@ -47,41 +44,27 @@ def render_budget_tab():
         conn.close()
         return
 
-    # Fetch task names and IDs from the subtasks table
-    task_data = fetch_task_names_and_ids(conn)
-    task_data["Budget Table"] = task_data["id"].apply(lambda x: f"budget_{x}")
+    # Fetch task names to map IDs to names
+    task_names_df = fetch_task_names(conn)
+    task_names_dict = dict(zip(task_names_df["id"], task_names_df["name"]))
 
     # Summary Section
     st.markdown("### Summary of Phase 1 Budgets")
     summary_data = []
 
     for table in budget_tables:
+        task_id = int(table.split("_")[1])  # Extract the ID from the table name
+        task_name = task_names_dict.get(task_id, "Unknown Task")  # Map ID to name
         total_budget = calculate_total_budget(conn, table)
-
-        # Map budget table to its corresponding task name
-        task_name = task_data.loc[task_data["Budget Table"] == table, "name"].values
-        task_name = task_name[0] if len(task_name) > 0 else "Unknown Task"
-
-        summary_data.append({"Name": task_name, "Total Cost": total_budget})
+        summary_data.append({"Task ID": task_id, "Task Name": task_name, "Total Cost": total_budget})
 
     summary_df = pd.DataFrame(summary_data)
     st.dataframe(summary_df.style.format({"Total Cost": "{:.2f}"}))
 
     st.write("Below are the available budgets for Phase 1 tasks:")
 
-    # Ensure session state is initialized for selected table
-    if "selected_table" not in st.session_state:
-        st.session_state.selected_table = None
-
-    # Dropdown to select a budget table
-    selected_table = st.selectbox(
-        "Select a budget table to view:",
-        [table for table in budget_tables if table in task_data["Budget Table"].values],
-        format_func=lambda x: task_data.loc[
-            task_data["Budget Table"] == x, "name"
-        ].values[0],
-        key="selected_table",
-    )
+    # Allow the user to select a specific budget table
+    selected_table = st.selectbox("Select a budget table to view:", budget_tables)
 
     if selected_table:
         # Fetch and display the data from the selected budget table
