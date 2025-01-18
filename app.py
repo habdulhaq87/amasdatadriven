@@ -33,10 +33,6 @@ def main():
     st.sidebar.title("Navigation")
     st.sidebar.markdown("### AMAS's Data-Driven Strategy for 2025")  # Added header to sidebar
 
-    # Add links for Database and Budget
-    st.sidebar.markdown("[Database](https://amasbackend.streamlit.app/)", unsafe_allow_html=True)
-    st.sidebar.markdown("[Budget](https://budgetapp.streamlit.app/)", unsafe_allow_html=True)
-
     # Updated pages to include "Report"
     pages = {
         "Home": "Home",
@@ -51,6 +47,23 @@ def main():
     for page_name in pages.keys():
         if st.sidebar.button(page_name):
             active_page = page_name
+
+    # Add custom-styled buttons for Database and Budget under "Report"
+    st.sidebar.markdown("<hr>", unsafe_allow_html=True)
+    st.sidebar.markdown("<h4>Quick Links</h4>", unsafe_allow_html=True)
+    if st.sidebar.button("Database", key="db_link"):
+        st.sidebar.markdown(
+            '<a href="https://amasbackend.streamlit.app/" target="_blank" '
+            'style="display: block; text-align: center; background-color: #d3d3d3; padding: 10px; border-radius: 5px; color: black; text-decoration: none;">Go to Database</a>',
+            unsafe_allow_html=True,
+        )
+
+    if st.sidebar.button("Budget", key="budget_link"):
+        st.sidebar.markdown(
+            '<a href="https://budgetapp.streamlit.app/" target="_blank" '
+            'style="display: block; text-align: center; background-color: #b0b0b0; padding: 10px; border-radius: 5px; color: black; text-decoration: none;">Go to Budget</a>',
+            unsafe_allow_html=True,
+        )
 
     # --- Main Content ---
     if active_page == "Home":
