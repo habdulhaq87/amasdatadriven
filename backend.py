@@ -35,7 +35,7 @@ def upload_file_to_github(
 
     b64_content = base64.b64encode(content).decode("utf-8")
 
-    # First, check if the file exists on GitHub to get its 'sha'
+    # Check if file exists on GitHub to get its 'sha'
     response = requests.get(url, headers=headers)
     sha = response.json()["sha"] if response.status_code == 200 else None
 
@@ -101,6 +101,7 @@ def update_task_budget_and_timeline(
     Update the budget, start_time, and deadline for a given task ID.
     """
     cursor = conn.cursor()
+    # If your DB column is actually 'start_time' (no brackets), remove the brackets.
     cursor.execute(
         """
         UPDATE subtasks
@@ -122,13 +123,12 @@ def update_task_budget_and_timeline(
 
 def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: str, github_pat: str):
     """
-    Page for managing and editing bdget, Start Time, and End Time for tasks.
+    Page for managing and editing budget, Start Time, and End Time for tasks.
     """
     st.title("Budget & Timeline Management")
 
     # 1) Fetch tasks
     df = fetch_tasks_for_budget_timeline(conn)
-
     if df.empty:
         st.warning("No tasks found in the database.")
         return
@@ -144,7 +144,7 @@ def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: 
     row = df.loc[df["id"] == selected_id].iloc[0]
     current_budget = row["budget"] if not pd.isna(row["budget"]) else 0.0
 
-    # Handle date parsing for Start Time
+    # Parse Start Time
     if isinstance(row["start_time"], str) and row["start_time"]:
         try:
             start_date_obj = datetime.datetime.strptime(row["start_time"], "%Y-%m-%d").date()
@@ -153,7 +153,7 @@ def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: 
     else:
         start_date_obj = datetime.date.today()
 
-    # Handle date parsing for deadline
+    # Parse Deadline
     if isinstance(row["deadline"], str) and row["deadline"]:
         try:
             end_date_obj = datetime.datetime.strptime(row["deadline"], "%Y-%m-%d").date()
@@ -167,12 +167,13 @@ def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: 
     new_start_date = st.date_input("Start Time:", value=start_date_obj)
     new_end_date = st.date_input("deadline:", value=end_date_obj)
 
+    # 5) Save Changes button
     if st.button("Save Changes"):
-        # 5) Update DB
+        # Update DB
         update_task_budget_and_timeline(conn, selected_id, new_budget, new_start_date, new_end_date)
         st.success(f"Task ID {selected_id} updated with new budget, start time, and end time.")
 
-        # 6) Push changes to GitHub
+        # Push changes to GitHub
         commit_msg = f"Updated budget/timeline for Task {selected_id} at {datetime.datetime.now()}"
         upload_file_to_github(
             github_user=github_user,
@@ -183,8 +184,8 @@ def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: 
             commit_message=commit_msg
         )
 
-        # Refresh page
-        st.experimental_rerun()
+        # No st.experimental_rerun() call. Just show a success message.
+        st.info("Changes saved. You may revisit this page to see updated data.")
 
 
 # ------------------- ADDING SUBTASKS PAGE -------------------
