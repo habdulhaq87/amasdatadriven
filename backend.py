@@ -82,7 +82,7 @@ def fetch_tasks_for_budget_timeline(conn: sqlite3.Connection) -> pd.DataFrame:
         id,
         Category,
         Name,
-        Budget,
+        budget,
         start_time,
         Deadline
     FROM subtasks
