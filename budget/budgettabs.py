@@ -30,7 +30,7 @@ def upload_file_to_github(
     sha = response.json()["sha"] if response.status_code == 200 else None
 
     payload = {
-        "message": commit_message,
+        "message": commit_message",
         "content": b64_content,
         "sha": sha,
     }
@@ -154,40 +154,9 @@ def delete_budget_line(conn: sqlite3.Connection, task_id: int, line_item_id: int
     sync_budget(conn, task_id)
 
 
-def render_edit_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: str, github_pat: str):
+def render_view_modify_budget_lines_page(conn: sqlite3.Connection):
     """
-    Tab: Edit Budget
-    """
-    st.subheader("Edit Budget")
-
-    df = fetch_tasks(conn)
-    if df.empty:
-        st.warning("No tasks found in the database.")
-        return
-
-    st.write("Below is the current list of tasks with their budget:")
-    st.dataframe(df)
-
-    task_ids = df["id"].unique()
-    selected_id = st.selectbox("Select a Task ID to edit:", task_ids)
-
-    row = df.loc[df["id"] == selected_id].iloc[0]
-    current_budget = float(row["budget"]) if not pd.isna(row["budget"]) else 0.0
-
-    new_budget = st.number_input("New Budget:", value=current_budget, step=100.0)
-
-    if st.button("Save Changes"):
-        query = "UPDATE subtasks SET budget = ? WHERE id = ?;"
-        conn.execute(query, (new_budget, selected_id))
-        conn.commit()
-
-        st.success(f"Task ID {selected_id} updated with new budget.")
-        push_db_to_github(commit_message=f"Updated Task ID {selected_id}: Budget changes")
-
-
-def render_view_budget_lines_page(conn: sqlite3.Connection):
-    """
-    Tab: View Budget Lines and Import CSV
+    Single Tab: View & Modify Budget Lines
     """
     st.subheader("View & Modify Budget Lines")
 
@@ -240,14 +209,7 @@ def render_view_budget_lines_page(conn: sqlite3.Connection):
 
 def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: str, github_pat: str):
     """
-    Main function to render the budget page with tabs.
+    Render the main budget page with a single tab.
     """
     st.title("Budget Management")
-
-    tab1, tab2 = st.tabs(["Edit Budget", "View & Modify Budget Lines"])
-
-    with tab1:
-        render_edit_budget_page(conn, github_user, github_repo, github_pat)
-
-    with tab2:
-        render_view_budget_lines_page(conn)
+    render_view_modify_budget_lines_page(conn)
