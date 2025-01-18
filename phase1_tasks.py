@@ -8,28 +8,9 @@ from subtasks import (
 
 def render_phase1_tasks_ui():
     """
-    Streamlit UI for Phase 1 tasks with a cleaner, more structured presentation.
+    Streamlit UI for Phase 1 tasks with a collapsible and visually appealing interface.
     """
-
-    st.set_page_config(page_title="Client Dashboard", layout="wide")
     st.title("Client Dashboard: Phase 1 Tasks")
-
-    # Add a subtle styling touch (can be removed or customized).
-    st.markdown(
-        """
-        <style>
-        /* Center the main title */
-        .css-18e3th9 {
-            text-align: center;
-        }
-        /* Increase the font size for subheaders */
-        .css-1j0bp8a h2 {
-            font-size: 1.5rem;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
 
     # Initialize or connect to the database
     conn = initialize_subtasks_database()
@@ -38,16 +19,15 @@ def render_phase1_tasks_ui():
     tasks = fetch_subtasks_from_db(conn)
 
     if tasks.empty:
-        st.write("No tasks available in the database.")
+        st.warning("No tasks available in the database.")
         return
 
     st.subheader("Task Overview")
-    st.write("Below are the tasks for Phase 1. Click on each task to expand its details.")
 
     # Display tasks in collapsible expanders
     for _, task in tasks.iterrows():
-        with st.expander(f"Task ID {task['id']}: {task['name']}"):
-            # Use columns to organize information side by side
+        with st.expander(f"Task ID {task['id']}: {task['name']}", expanded=False):
+            # Create two columns for better layout
             col1, col2 = st.columns([1, 1])
 
             with col1:
@@ -55,17 +35,16 @@ def render_phase1_tasks_ui():
                 st.markdown(f"**Aspect:** {task['aspect']}")
                 st.markdown(f"**Current Situation:** {task['current_situation']}")
                 st.markdown(f"**Detail:** {task['detail']}")
+                st.markdown(f"**Start Time:** {task['start_time']}")
 
             with col2:
-                st.markdown(f"**Start Time:** {task['start_time']}")
                 st.markdown(f"**Outcome:** {task['outcome']}")
                 st.markdown(f"**Person Involved:** {task['person_involved']}")
-                st.markdown(f"**Budget:** `${task['budget']}`")
+                st.markdown(f"**Budget:** ${task['budget']}")
                 st.markdown(f"**Deadline:** {task['deadline']}")
-
-            # Display progress bar at the bottom of the expander
-            progress_percentage = task['progress'] if task['progress'] <= 100 else 100
-            st.progress(progress_percentage, text=f"Progress: {progress_percentage}%")
+                # Use a progress bar with a clear label
+                progress_label = f"Progress: {task['progress']}%"
+                st.progress(task['progress'], text=progress_label)
 
 if __name__ == "__main__":
     render_phase1_tasks_ui()
