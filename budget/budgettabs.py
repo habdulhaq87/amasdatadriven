@@ -187,9 +187,9 @@ def render_edit_budget_page(conn: sqlite3.Connection, github_user: str, github_r
 
 def render_view_budget_lines_page(conn: sqlite3.Connection):
     """
-    Tab: View Budget Lines
+    Tab: View Budget Lines and Import CSV
     """
-    st.subheader("View Budget Lines")
+    st.subheader("View & Modify Budget Lines")
 
     df = fetch_tasks(conn)
     if df.empty:
@@ -219,6 +219,23 @@ def render_view_budget_lines_page(conn: sqlite3.Connection):
             delete_budget_line(conn, selected_id, selected_line_item_id)
             st.success(f"Line Item {selected_line_item_id} deleted successfully!")
             push_db_to_github(commit_message=f"Deleted Line Item {selected_line_item_id} for Task ID {selected_id}")
+
+    st.subheader("Upload Budget Details")
+    uploaded_file = st.file_uploader("Upload a CSV file with budget details:", type="csv")
+
+    if uploaded_file is not None:
+        budget_data = pd.read_csv(uploaded_file)
+        expected_columns = ["Item", "Detail", "Unit", "Quantity", "Unit Cost", "Total Cost", "Notes"]
+        if not all(column in budget_data.columns for column in expected_columns):
+            st.error(f"Invalid CSV format. Expected columns: {', '.join(expected_columns)}")
+        else:
+            st.write("Uploaded Budget Details:")
+            st.dataframe(budget_data)
+
+            if st.button("Save Uploaded Budget Details"):
+                insert_budget_lines(conn, selected_id, budget_data)
+                st.success(f"Budget details for Task ID {selected_id} saved successfully!")
+                push_db_to_github(commit_message=f"Updated budget lines for Task ID {selected_id}")
 
 
 def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: str, github_pat: str):
