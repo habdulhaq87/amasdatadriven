@@ -4,6 +4,8 @@ import pandas as pd
 import sqlite3
 import datetime
 import requests
+import base64
+import json
 
 
 def upload_file_to_github(
@@ -198,6 +200,9 @@ def render_view_budget_lines_page(conn: sqlite3.Connection):
             if st.button("Save Budget Details"):
                 insert_budget_lines(conn, selected_id, budget_data)
                 st.success(f"Budget details for Task ID {selected_id} saved successfully!")
+
+                # Push the updated database to GitHub
+                push_db_to_github(commit_message=f"Updated budget lines for Task ID {selected_id}")
 
 
 def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: str, github_pat: str):
