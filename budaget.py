@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import sqlite3
@@ -5,18 +6,13 @@ import datetime
 import base64
 import json
 import requests
-
 from subtasks import (
     initialize_subtasks_database,
     upload_csv_subtasks,
     delete_subtask_from_db,
 )
-from database_phases import render_database_phases_page  # Existing "Database Phases" page
+from database_phases import render_database_phases_page  # Import the new Database Phases functionality
 
-# 1) Import your budget management page from "budget.py"
-#    Make sure your budget.py file contains a function named "render_budget_page"
-#    that accepts the same parameters you see below.
-from budget import render_budget_page
 
 def upload_file_to_github(
     github_user: str,
@@ -154,8 +150,8 @@ def render_backend():
     conn = initialize_subtasks_database()
 
     # Retrieve GitHub details
-    github_user = "habdulhaq87"
-    github_repo = "amasdatadriven"
+    github_user = "habdulhaq87"  # Example user
+    github_repo = "amasdatadriven"  # Example repo
     github_pat = st.secrets["github"]["pat"]
 
     # Sidebar navigation
@@ -164,17 +160,12 @@ def render_backend():
         "Add Subtasks": lambda c: render_add_subtasks_page(c),
         "View Database": lambda c: render_view_database_page(c, github_user, github_repo, github_pat),
         "Database Phases": lambda _: render_database_phases_page(),
-        # 2) Add the new Budget Management page into the navigation
-        "Budget Management": lambda c: render_budget_page(c, github_user, github_repo, github_pat),
     }
-
     choice = st.sidebar.radio("Go to", list(pages.keys()))
 
     # Render the chosen page
     if choice == "Database Phases":
-        pages[choice](None)  # We call 'render_database_phases_page()' with no DB conn
-    elif choice == "Budget Management":
-        pages[choice](conn)   # Provide 'conn' + GitHub details if your budget page uses them
+        pages[choice](None)
     else:
         pages[choice](conn)
 
