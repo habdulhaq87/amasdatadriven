@@ -1,4 +1,3 @@
-
 import streamlit as st
 import vision
 import current  # Import the Current Stage module
@@ -33,6 +32,10 @@ def main():
     st.sidebar.image("input/logo.jpg", use_container_width=True)
     st.sidebar.title("Navigation")
     st.sidebar.markdown("### AMAS's Data-Driven Strategy for 2025")  # Added header to sidebar
+
+    # Add links for Database and Budget
+    st.sidebar.markdown("[Database](https://amasbackend.streamlit.app/)", unsafe_allow_html=True)
+    st.sidebar.markdown("[Budget](https://budgetapp.streamlit.app/)", unsafe_allow_html=True)
 
     # Updated pages to include "Report"
     pages = {
