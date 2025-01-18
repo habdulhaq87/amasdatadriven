@@ -115,7 +115,7 @@ def render_phase1():
         Below are the **Phase 1 tasks** from `amas_data.csv`, detailing who is responsible, 
         deliverables, start/end dates, budget, and more.
         """)
-        phase1_tasks.render_phase1_tasks()
+        phase1_tasks.render_phase1_tasks_ui()
 
     # --- SUMMARY TAB ---
     with tab_summary:
