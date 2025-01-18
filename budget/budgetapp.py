@@ -163,7 +163,7 @@ def render_edit_budget_page(conn: sqlite3.Connection, github_user: str, github_r
         st.info("Changes saved. Refresh the page to see the updates.")
 
 
-def render_import_budget_page():
+def render_budget_line_page():
     """
     Tab: Budget Line
     Placeholder for budget import functionality.
@@ -184,7 +184,7 @@ def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: 
         render_edit_budget_page(conn, github_user, github_repo, github_pat)
 
     with tab2:
-        render_import_budget_page()
+        render_budget_line_page()
 
 
 def main():
