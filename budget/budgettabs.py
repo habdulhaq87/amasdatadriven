@@ -30,7 +30,7 @@ def upload_file_to_github(
     sha = response.json()["sha"] if response.status_code == 200 else None
 
     payload = {
-        "message": commit_message",
+        "message": commit_message,
         "content": b64_content,
         "sha": sha,
     }
@@ -154,9 +154,9 @@ def delete_budget_line(conn: sqlite3.Connection, task_id: int, line_item_id: int
     sync_budget(conn, task_id)
 
 
-def render_view_modify_budget_lines_page(conn: sqlite3.Connection):
+def render_budget_lines_page(conn: sqlite3.Connection):
     """
-    Single Tab: View & Modify Budget Lines
+    View & Modify Budget Lines tab.
     """
     st.subheader("View & Modify Budget Lines")
 
@@ -209,7 +209,7 @@ def render_view_modify_budget_lines_page(conn: sqlite3.Connection):
 
 def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: str, github_pat: str):
     """
-    Render the main budget page with a single tab.
+    Main function to render the budget page with a single tab.
     """
     st.title("Budget Management")
-    render_view_modify_budget_lines_page(conn)
+    render_budget_lines_page(conn)
