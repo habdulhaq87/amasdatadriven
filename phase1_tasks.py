@@ -10,7 +10,7 @@ from subtasks import (
 
 def render_phase1_tasks_ui():
     """
-    Streamlit UI for managing Phase 1 tasks.
+    Streamlit UI for managing Phase 1 tasks with collapsible tabs for each task.
     """
     st.title("Phase 1 Tasks Management")
 
@@ -26,42 +26,43 @@ def render_phase1_tasks_ui():
 
     st.subheader("Current Tasks")
 
-    # Display tasks in a table format
-    st.dataframe(tasks)
+    # Display tasks in collapsible tabs
+    for _, task in tasks.iterrows():
+        with st.expander(f"Task ID {task['id']}: {task['name']}"):
+            st.write(f"**Category:** {task['category']}")
+            st.write(f"**Aspect:** {task['aspect']}")
+            st.write(f"**Current Situation:** {task['current_situation']}")
+            st.write(f"**Detail:** {task['detail']}")
+            st.write(f"**Start Time:** {task['start_time']}")
+            st.write(f"**Outcome:** {task['outcome']}")
+            st.write(f"**Person Involved:** {task['person_involved']}")
+            st.write(f"**Budget:** {task['budget']}")
+            st.write(f"**Deadline:** {task['deadline']}")
+            st.write(f"**Progress:** {task['progress']}%")
 
-    # Select a task to update or delete
-    task_ids = tasks["id"].tolist()
-    selected_task_id = st.selectbox("Select Task ID to Manage", options=task_ids)
-
-    if selected_task_id:
-        # Get the selected task details
-        selected_task = tasks[tasks["id"] == selected_task_id].iloc[0]
-
-        with st.expander("Update Task Details"):
             # Editable fields
             updated_data = {}
-            updated_data["category"] = st.text_input("Category", selected_task["category"])
-            updated_data["aspect"] = st.text_input("Aspect", selected_task["aspect"])
-            updated_data["current_situation"] = st.text_area("Current Situation", selected_task["current_situation"])
-            updated_data["name"] = st.text_input("Name", selected_task["name"])
-            updated_data["detail"] = st.text_area("Detail", selected_task["detail"])
-            updated_data["start_time"] = st.text_input("Start Time", selected_task["start_time"])
-            updated_data["outcome"] = st.text_area("Outcome", selected_task["outcome"])
-            updated_data["person_involved"] = st.text_input("Person Involved", selected_task["person_involved"])
-            updated_data["budget"] = st.number_input("Budget", value=selected_task["budget"], step=100.0)
-            updated_data["deadline"] = st.text_input("Deadline", selected_task["deadline"])
-            updated_data["progress"] = st.slider("Progress (%)", 0, 100, value=selected_task["progress"])
+            updated_data["category"] = st.text_input("Category", task["category"], key=f"category_{task['id']}")
+            updated_data["aspect"] = st.text_input("Aspect", task["aspect"], key=f"aspect_{task['id']}")
+            updated_data["current_situation"] = st.text_area("Current Situation", task["current_situation"], key=f"current_situation_{task['id']}")
+            updated_data["name"] = st.text_input("Name", task["name"], key=f"name_{task['id']}")
+            updated_data["detail"] = st.text_area("Detail", task["detail"], key=f"detail_{task['id']}")
+            updated_data["start_time"] = st.text_input("Start Time", task["start_time"], key=f"start_time_{task['id']}")
+            updated_data["outcome"] = st.text_area("Outcome", task["outcome"], key=f"outcome_{task['id']}")
+            updated_data["person_involved"] = st.text_input("Person Involved", task["person_involved"], key=f"person_involved_{task['id']}")
+            updated_data["budget"] = st.number_input("Budget", value=task["budget"], step=100.0, key=f"budget_{task['id']}")
+            updated_data["deadline"] = st.text_input("Deadline", task["deadline"], key=f"deadline_{task['id']}")
+            updated_data["progress"] = st.slider("Progress (%)", 0, 100, value=task["progress"], key=f"progress_{task['id']}")
 
             # Update button
-            if st.button("Update Task"):
-                update_subtask_in_db(conn, selected_task_id, updated_data)
-                st.success(f"Task ID {selected_task_id} updated successfully!")
+            if st.button(f"Update Task {task['id']}"):
+                update_subtask_in_db(conn, task['id'], updated_data)
+                st.success(f"Task ID {task['id']} updated successfully!")
 
-        with st.expander("Delete Task"):
             # Delete button
-            if st.button(f"Delete Task ID {selected_task_id}"):
-                delete_subtask_from_db(conn, selected_task_id)
-                st.success(f"Task ID {selected_task_id} deleted successfully!")
+            if st.button(f"Delete Task {task['id']}"):
+                delete_subtask_from_db(conn, task['id'])
+                st.success(f"Task ID {task['id']} deleted successfully!")
 
 if __name__ == "__main__":
     render_phase1_tasks_ui()
