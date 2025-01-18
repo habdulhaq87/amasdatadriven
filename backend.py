@@ -74,7 +74,7 @@ def fetch_data_from_table(conn: sqlite3.Connection, table_name: str) -> pd.DataF
 # ------------------- BUDGET & TIMELINE FUNCTIONS -------------------
 def fetch_tasks_for_budget_timeline(conn: sqlite3.Connection) -> pd.DataFrame:
     """
-    Fetch tasks from 'subtasks' including budget, start_time, and Deadline.
+    Fetch tasks from 'subtasks' including budget, start_time, and deadline.
     Adjust column names if your DB differs.
     """
     query = """
@@ -153,10 +153,10 @@ def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: 
     else:
         start_date_obj = datetime.date.today()
 
-    # Handle date parsing for Deadline
-    if isinstance(row["Deadline"], str) and row["Deadline"]:
+    # Handle date parsing for deadline
+    if isinstance(row["deadline"], str) and row["deadline"]:
         try:
-            end_date_obj = datetime.datetime.strptime(row["Deadline"], "%Y-%m-%d").date()
+            end_date_obj = datetime.datetime.strptime(row["deadline"], "%Y-%m-%d").date()
         except ValueError:
             end_date_obj = datetime.date.today()
     else:
@@ -165,7 +165,7 @@ def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: 
     # 4) Input widgets
     new_budget = st.number_input("budget:", value=float(current_budget), step=100.0)
     new_start_date = st.date_input("Start Time:", value=start_date_obj)
-    new_end_date = st.date_input("Deadline:", value=end_date_obj)
+    new_end_date = st.date_input("deadline:", value=end_date_obj)
 
     if st.button("Save Changes"):
         # 5) Update DB
