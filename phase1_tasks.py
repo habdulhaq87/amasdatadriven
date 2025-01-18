@@ -1,90 +1,67 @@
 import streamlit as st
 import pandas as pd
+import sqlite3
+from subtasks import (
+    initialize_subtasks_database,
+    fetch_subtasks_from_db,
+    update_subtask_in_db,
+    delete_subtask_from_db
+)
 
-def render_phase1_tasks():
+def render_phase1_tasks_ui():
     """
-    Displays the Phase 1 tasks for each category/aspect,
-    including Person in Charge, Deliverable, Start/End Dates, Budget, and Charter,
-    with an enhanced UI.
+    Streamlit UI for managing Phase 1 tasks.
     """
+    st.title("Phase 1 Tasks Management")
 
-    st.title("Phase 1: Tasks")
+    # Initialize or connect to the database
+    conn = initialize_subtasks_database()
 
-    st.write("""
-    Below you will find the **Phase 1 tasks** extracted from `amas_data.csv`, 
-    including details such as Person in Charge, Deliverables, Start/End Dates, Budget, and more.
-    """)
+    # Fetch existing tasks from the database
+    tasks = fetch_subtasks_from_db(conn)
 
-    # Load Data
-    df = pd.read_csv("amas_data.csv", sep=",")
-
-    # Check if columns for Phase 1 tasks exist to avoid KeyErrors
-    required_columns = [
-        "Category", "Aspect", 
-        "Phase1_Person in Charge", 
-        "Phase1_Deliverable", 
-        "Phase1_Start Date", 
-        "Phase1_End Date", 
-        "Phase1_Budget",
-        "Phase1_Charter"
-    ]
-    missing_cols = [col for col in required_columns if col not in df.columns]
-    if missing_cols:
-        st.error(f"Missing required columns for Phase 1 tasks: {missing_cols}")
+    if tasks.empty:
+        st.write("No tasks available in the database.")
         return
 
-    # Group tasks by category for an organized display
-    categories = df["Category"].unique()
+    st.subheader("Current Tasks")
 
-    for cat in categories:
-        cat_data = df[df["Category"] == cat]
+    # Display tasks in a table format
+    st.dataframe(tasks)
 
-        # Section header for each Category
-        st.markdown(f"## {cat} — Phase 1 Tasks")
+    # Select a task to update or delete
+    task_ids = tasks["id"].tolist()
+    selected_task_id = st.selectbox("Select Task ID to Manage", options=task_ids)
 
-        # Iterate over each row (Aspect) within this Category
-        for _, row in cat_data.iterrows():
-            aspect_title = row["Aspect"]
-            # Retrieve Phase 1 columns
-            person_in_charge = row["Phase1_Person in Charge"]
-            deliverable = row["Phase1_Deliverable"]
-            start_date = row["Phase1_Start Date"]
-            end_date = row["Phase1_End Date"]
-            budget = row["Phase1_Budget"]
-            charter = row["Phase1_Charter"]
+    if selected_task_id:
+        # Get the selected task details
+        selected_task = tasks[tasks["id"] == selected_task_id].iloc[0]
 
-            # We only show the expander if there's an Aspect name
-            with st.expander(f"**{aspect_title}**", expanded=False):
-                # We'll create a two-column layout for clarity
-                col1, col2 = st.columns([1, 1])
+        with st.expander("Update Task Details"):
+            # Editable fields
+            updated_data = {}
+            updated_data["category"] = st.text_input("Category", selected_task["category"])
+            updated_data["aspect"] = st.text_input("Aspect", selected_task["aspect"])
+            updated_data["current_situation"] = st.text_area("Current Situation", selected_task["current_situation"])
+            updated_data["name"] = st.text_input("Name", selected_task["name"])
+            updated_data["detail"] = st.text_area("Detail", selected_task["detail"])
+            updated_data["start_time"] = st.text_input("Start Time", selected_task["start_time"])
+            updated_data["outcome"] = st.text_area("Outcome", selected_task["outcome"])
+            updated_data["person_involved"] = st.text_input("Person Involved", selected_task["person_involved"])
+            updated_data["budget"] = st.number_input("Budget", value=selected_task["budget"], step=100.0)
+            updated_data["deadline"] = st.text_input("Deadline", selected_task["deadline"])
+            updated_data["progress"] = st.slider("Progress (%)", 0, 100, value=selected_task["progress"])
 
-                with col1:
-                    st.markdown(f"**:bust_in_silhouette: Person in Charge**")
-                    st.markdown(person_in_charge if pd.notnull(person_in_charge) else "N/A")
+            # Update button
+            if st.button("Update Task"):
+                update_subtask_in_db(conn, selected_task_id, updated_data)
+                st.success(f"Task ID {selected_task_id} updated successfully!")
 
-                    st.markdown(f"**:dart: Deliverable**")
-                    st.markdown(deliverable if pd.notnull(deliverable) else "N/A")
-
-                    st.markdown(f"**:date: Start Date**")
-                    st.markdown(start_date if pd.notnull(start_date) else "N/A")
-
-                with col2:
-                    st.markdown(f"**:hourglass_flowing_sand: End Date**")
-                    st.markdown(end_date if pd.notnull(end_date) else "N/A")
-
-                    st.markdown(f"**:moneybag: Budget**")
-                    st.markdown(budget if pd.notnull(budget) else "N/A")
-
-                    st.markdown(f"**:scroll: Charter**")
-                    st.markdown(charter if pd.notnull(charter) else "N/A")
-
-        st.write("---")
-
-    st.info("""
-    This view summarizes who is responsible for each Phase 1 task, 
-    the key deliverables, timelines, and budgets. 
-    Once tasks are updated in `amas_data.csv`, they will automatically appear here.
-    """)
+        with st.expander("Delete Task"):
+            # Delete button
+            if st.button(f"Delete Task ID {selected_task_id}"):
+                delete_subtask_from_db(conn, selected_task_id)
+                st.success(f"Task ID {selected_task_id} deleted successfully!")
 
 if __name__ == "__main__":
-    render_phase1_tasks()
+    render_phase1_tasks_ui()
