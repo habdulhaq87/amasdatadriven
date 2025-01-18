@@ -59,7 +59,7 @@ def render_budget_tab():
         summary_data.append({"Task ID": task_id, "Task Name": task_name, "Total Cost": total_budget})
 
     summary_df = pd.DataFrame(summary_data)
-    st.dataframe(summary_df.style.format({"Total Cost": "{:.2f}"}))
+    st.dataframe(summary_df.style.format({"Total Cost": "{:.1f}"}))
 
     # Display all available budget tables in an interactive UI
     st.markdown("### View Detailed Budgets")
@@ -68,16 +68,16 @@ def render_budget_tab():
         task_name = task_names_dict.get(task_id, "Unknown Task")  # Map ID to name
         total_budget = calculate_total_budget(conn, table)
 
-        with st.expander(f"Task ID {task_id}: {task_name} (Total Cost: {total_budget:.2f})"):
+        with st.expander(f"Task ID {task_id}: {task_name} (Total Cost: {total_budget:.1f})"):
             budget_data = fetch_budget_data(conn, table)
             if budget_data.empty:
                 st.warning(f"No data found in {table}.")
             else:
                 st.dataframe(
                     budget_data.style.format({
-                        "Quantity": "{:.2f}",
-                        "Unit Cost": "{:.2f}",
-                        "Total Cost": "{:.2f}",
+                        "Quantity": "{:.1f}",
+                        "Unit Cost": "{:.1f}",
+                        "Total Cost": "{:.1f}",
                     })
                 )
 
