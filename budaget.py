@@ -1,4 +1,4 @@
-
+# File: budget.py
 import streamlit as st
 import pandas as pd
 import sqlite3
@@ -6,13 +6,6 @@ import datetime
 import base64
 import json
 import requests
-from subtasks import (
-    initialize_subtasks_database,
-    upload_csv_subtasks,
-    delete_subtask_from_db,
-)
-from database_phases import render_database_phases_page  # Import the new Database Phases functionality
-
 
 def upload_file_to_github(
     github_user: str,
@@ -30,10 +23,9 @@ def upload_file_to_github(
 
     with open(local_file_path, "rb") as file:
         content = file.read()
-
     b64_content = base64.b64encode(content).decode("utf-8")
 
-    # First, check if the file exists on GitHub to get its 'sha'
+    # Check if file exists on GitHub to get 'sha'
     response = requests.get(url, headers=headers)
     sha = response.json()["sha"] if response.status_code == 200 else None
 
@@ -49,126 +41,115 @@ def upload_file_to_github(
     else:
         st.error(f"Failed to upload file to GitHub: {response.status_code}\n{response.text}")
 
-
-def get_table_names(conn: sqlite3.Connection):
+def fetch_tasks(conn: sqlite3.Connection) -> pd.DataFrame:
     """
-    Fetch and return the list of all table names in the SQLite database.
+    Fetch all tasks or subtasks from the database. Adjust table name/columns as needed.
     """
-    cursor = conn.cursor()
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-    tables = [row[0] for row in cursor.fetchall()]
-    return tables
-
-
-def fetch_data_from_table(conn: sqlite3.Connection, table_name: str) -> pd.DataFrame:
+    query = """
+    SELECT
+      id,
+      Category,
+      Aspect,
+      [Current Situation] as current_situation,
+      Name,
+      Budget,
+      [Start Time] as start_time,
+      Deadline
+    FROM subtasks
     """
-    Fetch all data from the specified table as a pandas DataFrame.
-    """
-    query = f"SELECT * FROM {table_name}"
     return pd.read_sql_query(query, conn)
 
-
-def delete_row_by_id(conn: sqlite3.Connection, table_name: str, row_id: int):
+def update_task_budget_and_timeline(
+    conn: sqlite3.Connection,
+    task_id: int,
+    new_budget: float,
+    new_start_time: datetime.date,
+    new_deadline: datetime.date,
+):
     """
-    Delete a row by ID from the specified table.
-    Assumes each table has an 'id' column.
+    Update budget, start time, and deadline for a given task ID.
     """
     cursor = conn.cursor()
-    cursor.execute(f"DELETE FROM {table_name} WHERE id = ?", (row_id,))
+    # The columns should match your DB schema exactly.
+    cursor.execute(
+        """
+        UPDATE subtasks
+        SET
+          Budget = ?,
+          [Start Time] = ?,
+          Deadline = ?
+        WHERE id = ?
+        """,
+        (
+            new_budget,
+            new_start_time.isoformat() if new_start_time else None,
+            new_deadline.isoformat() if new_deadline else None,
+            task_id,
+        ),
+    )
     conn.commit()
 
-
-def render_add_subtasks_page(conn: sqlite3.Connection):
+def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: str, github_pat: str):
     """
-    Page for uploading subtasks via CSV (to the 'subtasks' table).
+    Streamlit page: Budget & Timeline Management.
     """
-    st.title("Add Subtasks")
-    st.write("Upload a CSV of subtasks with the required columns.")
-    upload_csv_subtasks(conn)
+    st.title("Budget & Timeline Management")
 
+    # 1) Fetch tasks from the DB
+    df = fetch_tasks(conn)
 
-def render_view_database_page(conn: sqlite3.Connection, github_user, github_repo, github_pat):
-    """
-    Page to view and manage any table in the database.
-    """
-    st.title("View Database")
-
-    # Fetch all table names from the database
-    tables = get_table_names(conn)
-    if not tables:
-        st.write("No tables found in the database.")
+    if df.empty:
+        st.warning("No tasks found in the database.")
         return
 
-    # Let the user select which table to view
-    selected_table = st.selectbox("Select a table to view", options=tables)
+    st.write("Below is the current list of tasks/subtasks with their budget, start time, and deadline:")
+    st.dataframe(df)
 
-    if selected_table:
-        # Fetch and display data from the chosen table
-        df = fetch_data_from_table(conn, selected_table)
+    # 2) Select a task by ID
+    task_ids = df["id"].unique()
+    selected_id = st.selectbox("Select a Task ID to edit:", task_ids)
 
-        if not df.empty:
-            st.write(f"### Table: {selected_table}")
-            st.dataframe(df)
+    # 3) Retrieve the row for that selected ID
+    row = df.loc[df["id"] == selected_id].iloc[0]
 
-            # Deletion controls
-            st.write("#### Delete a Row by ID")
-            row_id = st.number_input("Enter the ID of the row to delete:", min_value=1, step=1)
+    # 4) Current values
+    current_budget = float(row["Budget"]) if not pd.isna(row["Budget"]) else 0.0
+    current_start_time = row["start_time"] if isinstance(row["start_time"], str) else None
+    current_deadline = row["Deadline"] if isinstance(row["Deadline"], str) else None
 
-            if st.button("Delete"):
-                if "id" in df.columns and row_id in df["id"].values:
-                    # 1) Delete from the local database
-                    delete_row_by_id(conn, selected_table, row_id)
-                    st.success(f"Row with ID {row_id} has been deleted from '{selected_table}'.")
+    # 5) Create input widgets
+    new_budget = st.number_input("New Budget:", value=current_budget, step=100.0)
 
-                    # 2) Push the updated database to GitHub
-                    commit_msg = f"Delete row {row_id} from {selected_table} at {datetime.datetime.now()}"
-                    upload_file_to_github(
-                        github_user=github_user,
-                        github_repo=github_repo,
-                        github_pat=github_pat,
-                        file_path="subtasks.db",      # path on GitHub
-                        local_file_path="subtasks.db",# local DB file
-                        commit_message=commit_msg,
-                    )
+    # If your stored times are strings, convert them to date
+    try:
+        st_time = datetime.datetime.strptime(current_start_time, "%Y-%m-%d").date() if current_start_time else datetime.date.today()
+    except:
+        st_time = datetime.date.today()
 
-                    # 3) Refresh and display the updated data
-                    updated_df = fetch_data_from_table(conn, selected_table)
-                    if not updated_df.empty:
-                        st.dataframe(updated_df)
-                    else:
-                        st.write(f"'{selected_table}' is now empty.")
-                else:
-                    st.warning(f"ID {row_id} not found in the '{selected_table}' table.")
-        else:
-            st.write(f"'{selected_table}' table is empty.")
+    try:
+        dl_time = datetime.datetime.strptime(current_deadline, "%Y-%m-%d").date() if current_deadline else datetime.date.today()
+    except:
+        dl_time = datetime.date.today()
 
+    new_start_date = st.date_input("Start Time:", value=st_time)
+    new_deadline_date = st.date_input("Deadline:", value=dl_time)
 
-def render_backend():
-    st.set_page_config(page_title="AMAS Data Management", layout="wide")
+    # 6) Button to update
+    if st.button("Save Changes"):
+        # Update local DB
+        update_task_budget_and_timeline(conn, selected_id, new_budget, new_start_date, new_deadline_date)
+        st.success(f"Task ID {selected_id} updated with new budget, start time, and deadline.")
 
-    # Initialize or connect to the SQLite database
-    conn = initialize_subtasks_database()
+        # 7) Optional: push to GitHub
+        commit_msg = f"Updated budget/timeline for Task ID {selected_id} at {datetime.datetime.now()}"
+        upload_file_to_github(
+            github_user=github_user,
+            github_repo=github_repo,
+            github_pat=github_pat,
+            file_path="subtasks.db",
+            local_file_path="subtasks.db",
+            commit_message=commit_msg,
+        )
 
-    # Retrieve GitHub details
-    github_user = "habdulhaq87"  # Example user
-    github_repo = "amasdatadriven"  # Example repo
-    github_pat = st.secrets["github"]["pat"]
-
-    # Sidebar navigation
-    st.sidebar.title("Navigation")
-    pages = {
-        "Add Subtasks": lambda c: render_add_subtasks_page(c),
-        "View Database": lambda c: render_view_database_page(c, github_user, github_repo, github_pat),
-        "Database Phases": lambda _: render_database_phases_page(),
-    }
-    choice = st.sidebar.radio("Go to", list(pages.keys()))
-
-    # Render the chosen page
-    if choice == "Database Phases":
-        pages[choice](None)
-    else:
-        pages[choice](conn)
-
-
-if __name__ == "__main__":
-    render_backend()
+        # 8) Refresh display
+        st.experimental_rerun()
