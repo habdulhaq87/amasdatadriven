@@ -1,3 +1,5 @@
+
+
 import streamlit as st
 import pandas as pd
 from streamlit_lottie import st_lottie
@@ -41,10 +43,10 @@ def render_phase1():
         df = pd.read_csv("amas_data.csv", sep=",")  # Adjust if file path differs
 
         # Load Lottie animations
-        arrive_animation = load_lottie_animation("input/arrive.json")
+        arrive_animation   = load_lottie_animation("input/arrive.json")
         inventory_animation = load_lottie_animation("input/inventory.json")
-        store_animation = load_lottie_animation("input/store.json")
-        order_animation = load_lottie_animation("input/order.json")
+        store_animation    = load_lottie_animation("input/store.json")
+        order_animation    = load_lottie_animation("input/order.json")
         postsell_animation = load_lottie_animation("input/postsell.json")
 
         # Identify unique categories
@@ -65,15 +67,15 @@ def render_phase1():
             with col_img:
                 # Decide the Lottie animation vs. placeholder
                 if cat == "Receiving & QC":
-                    st_lottie(arrive_animation, key="receiving_qc", height=200, width=180)
+                    st_lottie(arrive_animation,    key="receiving_qc",     height=200, width=180)
                 elif cat == "Inventory Management":
                     st_lottie(inventory_animation, key="inventory_manage", height=200, width=180)
                 elif cat == "Store-Level Operations":
-                    st_lottie(store_animation, key="store_operations", height=200, width=180)
+                    st_lottie(store_animation,     key="store_operations", height=200, width=180)
                 elif cat == "Selling the Items":
-                    st_lottie(order_animation, key="selling_items", height=200, width=180)
+                    st_lottie(order_animation,     key="selling_items",    height=200, width=180)
                 elif cat == "Post-Sale & Procurement":
-                    st_lottie(postsell_animation, key="post_sale", height=200, width=180)
+                    st_lottie(postsell_animation,  key="post_sale",        height=200, width=180)
                 else:
                     # Placeholder for other categories
                     st.image(
@@ -85,8 +87,8 @@ def render_phase1():
             with col_text:
                 # For each Aspect in the Category, compare CurrentSituation vs. Phase1
                 for _, row in cat_data.iterrows():
-                    aspect_title = row["Aspect"]
-                    current_situation = row["CurrentSituation"].replace("\\n", "\n")
+                    aspect_title       = row["Aspect"]
+                    current_situation  = row["CurrentSituation"].replace("\\n", "\n")
                     phase1_improvement = row["Phase1"].replace("\\n", "\n")
 
                     with st.expander(f"**{aspect_title}**"):
@@ -115,7 +117,6 @@ def render_phase1():
         Below are the **Phase 1 tasks** from `amas_data.csv`, detailing who is responsible, 
         deliverables, start/end dates, budget, and more.
         """)
-        # Updated task UI is rendered here
         phase1_tasks.render_phase1_tasks_ui()
 
     # --- SUMMARY TAB ---
