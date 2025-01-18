@@ -5,7 +5,6 @@ import datetime
 import base64
 import json
 import requests
-from database_phases import render_database_phases_page  # Existing Database Phases functionality
 
 
 # ========================= GITHUB PUSH FUNCTION =========================
