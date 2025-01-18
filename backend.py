@@ -10,8 +10,7 @@ from subtasks import (
     upload_csv_subtasks,
     delete_subtask_from_db,
 )
-from database_phases import render_database_phases_page
-
+from database_phases import render_database_phases_page  # Import the Database Phases functionality
 
 def upload_file_to_github(
     github_user: str,
@@ -59,9 +58,9 @@ def get_table_names(conn: sqlite3.Connection):
     return tables
 
 
-def fetch_budget_data(conn: sqlite3.Connection):
+def fetch_budget_data(conn: sqlite3.Connection) -> pd.DataFrame:
     """
-    Fetch budget-related data for editing.
+    Fetch all tasks and their budgets for budget management.
     """
     query = "SELECT id, category, name, budget FROM subtasks"
     return pd.read_sql_query(query, conn)
@@ -69,7 +68,7 @@ def fetch_budget_data(conn: sqlite3.Connection):
 
 def update_budget(conn: sqlite3.Connection, task_id: int, new_budget: float):
     """
-    Update the budget for a specific task in the database.
+    Update the budget for a specific task.
     """
     cursor = conn.cursor()
     cursor.execute(
@@ -81,11 +80,12 @@ def update_budget(conn: sqlite3.Connection, task_id: int, new_budget: float):
 
 def render_budget_page(conn: sqlite3.Connection, github_user, github_repo, github_pat):
     """
-    Render the Budget Management Page.
+    Page for managing and editing budgets.
     """
     st.title("Budget Management")
 
     budget_data = fetch_budget_data(conn)
+
     if not budget_data.empty:
         st.write("### Current Budgets")
         st.dataframe(budget_data)
@@ -103,18 +103,48 @@ def render_budget_page(conn: sqlite3.Connection, github_user, github_repo, githu
             st.success(f"Budget updated for Task ID {task_id} to {new_budget}")
 
             # Push the updated database to GitHub
-            commit_msg = f"Updated budget for Task ID {task_id} to {new_budget} at {datetime.datetime.now()}"
+            commit_msg = f"Budget updated for Task ID {task_id} at {datetime.datetime.now()}"
             upload_file_to_github(
                 github_user=github_user,
                 github_repo=github_repo,
                 github_pat=github_pat,
-                file_path="subtasks.db",  # path on GitHub
-                local_file_path="subtasks.db",  # local DB file
+                file_path="subtasks.db",  # Path on GitHub
+                local_file_path="subtasks.db",  # Local DB file
                 commit_message=commit_msg,
             )
+
             st.experimental_rerun()
     else:
-        st.warning("No budget data found in the database.")
+        st.warning("No tasks found in the database.")
+
+
+def render_add_subtasks_page(conn: sqlite3.Connection):
+    """
+    Page for uploading subtasks via CSV (to the 'subtasks' table).
+    """
+    st.title("Add Subtasks")
+    st.write("Upload a CSV of subtasks with the required columns.")
+    upload_csv_subtasks(conn)
+
+
+def render_view_database_page(conn: sqlite3.Connection, github_user, github_repo, github_pat):
+    """
+    Page to view and manage any table in the database.
+    """
+    st.title("View Database")
+
+    tables = get_table_names(conn)
+    if not tables:
+        st.write("No tables found in the database.")
+        return
+
+    selected_table = st.selectbox("Select a table to view", options=tables)
+    if selected_table:
+        df = fetch_data_from_table(conn, selected_table)
+
+        if not df.empty:
+            st.write(f"### Table: {selected_table}")
+            st.dataframe(df)
 
 
 def render_backend():
@@ -138,7 +168,6 @@ def render_backend():
     }
     choice = st.sidebar.radio("Go to", list(pages.keys()))
 
-    # Render the chosen page
     if choice == "Database Phases":
         pages[choice](None)
     else:
