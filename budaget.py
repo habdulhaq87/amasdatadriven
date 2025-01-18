@@ -67,7 +67,6 @@ def push_db_to_github(commit_message: str = None):
 def fetch_tasks(conn: sqlite3.Connection) -> pd.DataFrame:
     """
     Fetch tasks (or subtasks) from the DB with the actual column names.
-    Adjust these columns if your table differs!
     """
     query = """
     SELECT
@@ -97,7 +96,6 @@ def update_task_budget_and_timeline(
 ):
     """
     Update budget, start_time, and deadline for a given task ID.
-    Make sure these columns match your actual DB schema exactly!
     """
     cursor = conn.cursor()
     cursor.execute(
@@ -119,12 +117,11 @@ def update_task_budget_and_timeline(
     conn.commit()
 
 
-def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: str, github_pat: str):
+def render_edit_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: str, github_pat: str):
     """
-    Streamlit page: Budget Management.
-    Allows editing budget, start_time, and deadline in 'subtasks'.
+    Tab: Edit Budget
     """
-    st.title("Budget Management")
+    st.subheader("Edit Budget")
 
     # Fetch tasks from the DB
     df = fetch_tasks(conn)
@@ -135,60 +132,56 @@ def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: 
     st.write("Below is the current list of tasks with their budget, start time, and deadline:")
     st.dataframe(df)
 
-    # Let the user choose a task to edit
+    # Select a task to edit
     task_ids = df["id"].unique()
     selected_id = st.selectbox("Select a Task ID to edit:", task_ids)
 
-    # Retrieve the row for that selected ID
+    # Retrieve the row for the selected ID
     row = df.loc[df["id"] == selected_id].iloc[0]
 
-    # Current values
+    # Input fields for editing
     current_budget = float(row["budget"]) if not pd.isna(row["budget"]) else 0.0
     current_start_time = row["start_time"] if isinstance(row["start_time"], str) else None
     current_deadline = row["deadline"] if isinstance(row["deadline"], str) else None
 
-    # Input widgets
-    new_budget = st.number_input("New Budget:", value=current_budget, step=100.0)
-
-    # Convert stored strings to date
     def parse_date_or_today(date_str):
         try:
             return datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
         except (TypeError, ValueError):
             return datetime.date.today()
 
-    start_value = parse_date_or_today(current_start_time)
-    deadline_value = parse_date_or_today(current_deadline)
+    new_budget = st.number_input("New Budget:", value=current_budget, step=100.0)
+    new_start_date = st.date_input("Start Time:", value=parse_date_or_today(current_start_time))
+    new_deadline_date = st.date_input("Deadline:", value=parse_date_or_today(current_deadline))
 
-    new_start_date = st.date_input("Start Time:", value=start_value)
-    new_deadline_date = st.date_input("Deadline:", value=deadline_value)
-
-    # Button to update
+    # Save changes button
     if st.button("Save Changes"):
-        # Update in DB
         update_task_budget_and_timeline(conn, selected_id, new_budget, new_start_date, new_deadline_date)
         st.success(f"Task ID {selected_id} updated with new budget, start time, and deadline.")
 
-        # Push changes to GitHub
         push_db_to_github(commit_message=f"Updated Task ID {selected_id}: Budget/Timeline changes")
+        st.info("Changes saved. Refresh the page to see the updates.")
 
 
 def render_import_budget_page():
     """
-    Placeholder for the 'Import Budget' tab.
+    Tab: Import Budget
+    Placeholder for budget import functionality.
     """
-    st.title("Import Budget")
-    st.write("This is a placeholder for the Import Budget functionality. It will be implemented in the future.")
+    st.subheader("Import Budget")
+    st.write("This functionality is under development.")
 
 
-def render_budget_tabs(conn: sqlite3.Connection, github_user: str, github_repo: str, github_pat: str):
+def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: str, github_pat: str):
     """
-    Renders two tabs: Budget and Import Budget.
+    Main function to render the budget page with two tabs.
     """
-    tabs = st.tabs(["Budget", "Import Budget"])
+    st.title("Budget Management")
 
-    with tabs[0]:
-        render_budget_page(conn, github_user, github_repo, github_pat)
+    tab1, tab2 = st.tabs(["Edit Budget", "Import Budget"])
 
-    with tabs[1]:
+    with tab1:
+        render_edit_budget_page(conn, github_user, github_repo, github_pat)
+
+    with tab2:
         render_import_budget_page()
