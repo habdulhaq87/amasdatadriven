@@ -86,8 +86,8 @@ def fetch_budget_lines(conn: sqlite3.Connection, task_id: int) -> pd.DataFrame:
     query = f"SELECT * FROM {table_name};"
     try:
         return pd.read_sql_query(query, conn)
-    except Exception as e:
-        return None  # Return None if the table does not exist
+    except Exception:
+        return None
 
 
 def create_budget_line_table(conn: sqlite3.Connection, task_id: int):
@@ -113,7 +113,7 @@ def create_budget_line_table(conn: sqlite3.Connection, task_id: int):
 
 def insert_budget_lines(conn: sqlite3.Connection, task_id: int, budget_data: pd.DataFrame):
     """
-    Insert budget lines into the corresponding budget line table.
+    Insert budget lines into the corresponding budget line table and sync the main budget.
     """
     table_name = f"budget_{task_id}"
     query = f"""
@@ -125,6 +125,21 @@ def insert_budget_lines(conn: sqlite3.Connection, task_id: int, budget_data: pd.
             row["Item"], row["Detail"], row["Unit"], row["Quantity"],
             row["Unit Cost"], row["Total Cost"], row["Notes"]
         ))
+    conn.commit()
+    sync_budget(conn, task_id)
+
+
+def sync_budget(conn: sqlite3.Connection, task_id: int):
+    """
+    Sync the 'budget' value in the 'subtasks' table with the sum of 'total_cost'
+    from the 'budget_<task_id>' table.
+    """
+    table_name = f"budget_{task_id}"
+    query_sum = f"SELECT SUM(total_cost) FROM {table_name};"
+    total_cost = conn.execute(query_sum).fetchone()[0] or 0.0
+
+    query_update = "UPDATE subtasks SET budget = ? WHERE id = ?;"
+    conn.execute(query_update, (total_cost, task_id))
     conn.commit()
 
 
