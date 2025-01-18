@@ -126,7 +126,7 @@ def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: 
     """
     st.title("Budget & Timeline Management")
 
-    # 1) Fetch tasks from the DB
+    # Fetch tasks from the DB
     df = fetch_tasks(conn)
 
     if df.empty:
@@ -136,47 +136,52 @@ def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: 
     st.write("Below is the current list of tasks with their budget, start time, and deadline:")
     st.dataframe(df)
 
-    # 2) Select a task by ID
+    # Select a task by ID
     task_ids = df["id"].unique()
-    selected_id = st.selectbox("Select a Task ID to edit:", task_ids, key="selected_task_id")
+    if "selected_task_id" not in st.session_state:
+        st.session_state.selected_task_id = task_ids[0]  # Default to the first task ID
 
-    # 3) Retrieve the row for that selected ID
+    selected_id = st.selectbox("Select a Task ID to edit:", task_ids, index=list(task_ids).index(st.session_state.selected_task_id))
+
+    # Retrieve the row for that selected ID
     row = df.loc[df["id"] == selected_id].iloc[0]
 
-    # 4) Current values
+    # Current values
     current_budget = float(row["budget"]) if not pd.isna(row["budget"]) else 0.0
     current_start_time = row["start_time"] if isinstance(row["start_time"], str) else None
     current_deadline = row["deadline"] if isinstance(row["deadline"], str) else None
 
-    # 5) Create input widgets
+    # Input widgets
     new_budget = st.number_input("New Budget:", value=current_budget, step=100.0)
 
-    # Convert stored strings to dates
     try:
         st_time = datetime.datetime.strptime(current_start_time, "%Y-%m-%d").date() if current_start_time else datetime.date.today()
-    except:
+    except ValueError:
         st_time = datetime.date.today()
 
     try:
         dl_time = datetime.datetime.strptime(current_deadline, "%Y-%m-%d").date() if current_deadline else datetime.date.today()
-    except:
+    except ValueError:
         dl_time = datetime.date.today()
 
-    new_start_date = st.date_input("Start Time:", value=st_time, key="new_start_date")
-    new_deadline_date = st.date_input("Deadline:", value=dl_time, key="new_deadline_date")
+    new_start_date = st.date_input("Start Time:", value=st_time)
+    new_deadline_date = st.date_input("Deadline:", value=dl_time)
 
-    # 6) Button to update
+    # Save changes
     if st.button("Save Changes"):
-        # Update local DB
+        # Update the local database
         update_task_budget_and_timeline(conn, selected_id, new_budget, new_start_date, new_deadline_date)
         st.success(f"Task ID {selected_id} updated with new budget, start time, and deadline.")
 
-        # Push to GitHub
+        # Push the changes to GitHub
         push_db_to_github(commit_message=f"Updated Task ID {selected_id}: Budget/Timeline changes")
 
-        # 7) Simulate refresh by resetting state
-        st.session_state.selected_task_id = selected_id  # Optional: store the current task ID
-        st.session_state.new_start_date = new_start_date
-        st.session_state.new_deadline_date = new_deadline_date
-        st.experimental_rerun()  # This refreshes the page
+        # Update session state to reflect the latest change
+        st.session_state.selected_task_id = selected_id
+        st.session_state.refresh_flag = not st.session_state.get("refresh_flag", False)
+
+    # Refresh the display if the `refresh_flag` changes
+    if st.session_state.get("refresh_flag", False):
+        st.experimental_set_query_params(refresh_flag=str(st.session_state.refresh_flag))
+
 
