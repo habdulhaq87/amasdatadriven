@@ -119,7 +119,7 @@ def update_task_budget_and_timeline(
     conn.commit()
 
 
-def render_budget_page(conn: sqlite3.Connection):
+def render_budget_page(conn: sqlite3.Connection, github_user: str, github_repo: str, github_pat: str):
     """
     Streamlit page: Budget & Timeline Management.
     Allows editing budget, start_time, and deadline in 'subtasks'.
@@ -138,7 +138,7 @@ def render_budget_page(conn: sqlite3.Connection):
 
     # 2) Select a task by ID
     task_ids = df["id"].unique()
-    selected_id = st.selectbox("Select a Task ID to edit:", task_ids)
+    selected_id = st.selectbox("Select a Task ID to edit:", task_ids, key="selected_task_id")
 
     # 3) Retrieve the row for that selected ID
     row = df.loc[df["id"] == selected_id].iloc[0]
@@ -162,8 +162,8 @@ def render_budget_page(conn: sqlite3.Connection):
     except:
         dl_time = datetime.date.today()
 
-    new_start_date = st.date_input("Start Time:", value=st_time)
-    new_deadline_date = st.date_input("Deadline:", value=dl_time)
+    new_start_date = st.date_input("Start Time:", value=st_time, key="new_start_date")
+    new_deadline_date = st.date_input("Deadline:", value=dl_time, key="new_deadline_date")
 
     # 6) Button to update
     if st.button("Save Changes"):
@@ -174,5 +174,9 @@ def render_budget_page(conn: sqlite3.Connection):
         # Push to GitHub
         push_db_to_github(commit_message=f"Updated Task ID {selected_id}: Budget/Timeline changes")
 
-        # Refresh display
-        st.experimental_rerun()
+        # 7) Simulate refresh by resetting state
+        st.session_state.selected_task_id = selected_id  # Optional: store the current task ID
+        st.session_state.new_start_date = new_start_date
+        st.session_state.new_deadline_date = new_deadline_date
+        st.experimental_rerun()  # This refreshes the page
+
