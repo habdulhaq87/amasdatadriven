@@ -33,7 +33,7 @@ def fetch_task_names(conn):
 
 
 def render_budget_tab():
-    """Render the Budget tab, consolidating budget tables and providing a summary."""
+    """Render the Budget tab, showing all budget tables with detailed views."""
     st.subheader("Phase 1 Budgets")
 
     conn = sqlite3.connect("subtasks.db")
@@ -61,26 +61,25 @@ def render_budget_tab():
     summary_df = pd.DataFrame(summary_data)
     st.dataframe(summary_df.style.format({"Total Cost": "{:.2f}"}))
 
-    st.write("Below are the available budgets for Phase 1 tasks:")
+    # Display all available budget tables in an interactive UI
+    st.markdown("### View Detailed Budgets")
+    for table in budget_tables:
+        task_id = int(table.split("_")[1])  # Extract the ID from the table name
+        task_name = task_names_dict.get(task_id, "Unknown Task")  # Map ID to name
+        total_budget = calculate_total_budget(conn, table)
 
-    # Allow the user to select a specific budget table
-    selected_table = st.selectbox("Select a budget table to view:", budget_tables)
-
-    if selected_table:
-        # Fetch and display the data from the selected budget table
-        budget_data = fetch_budget_data(conn, selected_table)
-
-        if budget_data.empty:
-            st.warning(f"No data found in {selected_table}.")
-        else:
-            st.write(f"**Details for {selected_table}:**")
-            st.dataframe(
-                budget_data.style.format({
-                    "Quantity": "{:.2f}",
-                    "Unit Cost": "{:.2f}",
-                    "Total Cost": "{:.2f}",
-                })
-            )
+        with st.expander(f"Task ID {task_id}: {task_name} (Total Cost: {total_budget:.2f})"):
+            budget_data = fetch_budget_data(conn, table)
+            if budget_data.empty:
+                st.warning(f"No data found in {table}.")
+            else:
+                st.dataframe(
+                    budget_data.style.format({
+                        "Quantity": "{:.2f}",
+                        "Unit Cost": "{:.2f}",
+                        "Total Cost": "{:.2f}",
+                    })
+                )
 
     # Close the connection
     conn.close()
