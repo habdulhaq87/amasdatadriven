@@ -6,7 +6,7 @@ from subtasks import (
     delete_subtask_from_db,
 )
 from database_phases import render_database_phases_page  # Existing Database Phases functionality
-from budget import render_budget_page  # Importing budget management functionality
+from budget import render_budget_page
 
 
 # ------------------- GITHUB UPLOAD FUNCTION -------------------
