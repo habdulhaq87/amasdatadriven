@@ -220,6 +220,7 @@ def render_view_database_page(conn: sqlite3.Connection, github_user, github_repo
 
 
 # ------------------- MAIN BACKEND RENDER -------------------
+# ------------------- MAIN BACKEND RENDER -------------------
 def render_backend():
     st.set_page_config(page_title="AMAS Data Management", layout="wide")
 
@@ -231,21 +232,32 @@ def render_backend():
     github_repo = "amasdatadriven"
     github_pat = st.secrets["github"]["pat"]
 
-    # Navigation
+    # Sidebar navigation
     st.sidebar.title("Navigation")
-    pages = {
-        "Add Subtasks": lambda c: render_add_subtasks_page(c),
-        "View Database": lambda c: render_view_database_page(c, github_user, github_repo, github_pat),
-        "Database Phases": lambda _: render_database_phases_page(),
-        # Budget & Timeline management
-        "Budget & Timeline": lambda c: render_budget_page(c, github_user, github_repo, github_pat),
-    }
-    choice = st.sidebar.radio("Go to", list(pages.keys()))
 
-    if choice == "Database Phases":
-        pages[choice](None)  # No direct DB connection needed
+    # Navigation buttons
+    if st.sidebar.button("Add Subtasks"):
+        selected_page = "Add Subtasks"
+    elif st.sidebar.button("View Database"):
+        selected_page = "View Database"
+    elif st.sidebar.button("Database Phases"):
+        selected_page = "Database Phases"
+    elif st.sidebar.button("Budget & Timeline"):
+        selected_page = "Budget & Timeline"
     else:
-        pages[choice](conn)
+        selected_page = None
+
+    # Render the selected page
+    if selected_page == "Add Subtasks":
+        render_add_subtasks_page(conn)
+    elif selected_page == "View Database":
+        render_view_database_page(conn, github_user, github_repo, github_pat)
+    elif selected_page == "Database Phases":
+        render_database_phases_page()
+    elif selected_page == "Budget & Timeline":
+        render_budget_page(conn, github_user, github_repo, github_pat)
+    else:
+        st.write("Select a page from the navigation sidebar.")
 
 
 # ------------------- MAIN -------------------
