@@ -59,7 +59,7 @@ def render_budget_tab():
         summary_data.append({"Task ID": task_id, "Task Name": task_name, "Total Cost": total_budget})
 
     summary_df = pd.DataFrame(summary_data)
-    st.dataframe(summary_df.style.format({"Total Cost": "{:.1f}"}))
+    st.dataframe(summary_df.style.format({"Total Cost": "{:.1f}"}))  # Format to one decimal place
 
     # Display all available budget tables in an interactive UI
     st.markdown("### View Detailed Budgets")
@@ -73,13 +73,13 @@ def render_budget_tab():
             if budget_data.empty:
                 st.warning(f"No data found in {table}.")
             else:
-                st.dataframe(
-                    budget_data.style.format({
-                        "Quantity": "{:.1f}",
-                        "Unit Cost": "{:.1f}",
-                        "Total Cost": "{:.1f}",
-                    })
-                )
+                # Format numeric columns to one decimal place
+                formatted_budget_data = budget_data.copy()
+                numeric_columns = ["Quantity", "Unit Cost", "Total Cost"]
+                for col in numeric_columns:
+                    if col in formatted_budget_data.columns:
+                        formatted_budget_data[col] = formatted_budget_data[col].round(1)
+                st.dataframe(formatted_budget_data)
 
     # Close the connection
     conn.close()
