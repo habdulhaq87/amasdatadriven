@@ -145,6 +145,9 @@ def render_view_database_page(conn: sqlite3.Connection, github_user, github_repo
         if not df.empty:
             st.write(f"### Table: {selected_table}")
             st.dataframe(df)
+def fetch_data_from_table(conn: sqlite3.Connection, table_name: str) -> pd.DataFrame:
+    query = f"SELECT * FROM {table_name}"
+    return pd.read_sql_query(query, conn)
 
 
 def render_backend():
