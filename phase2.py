@@ -38,7 +38,7 @@ phase2_tasks = [
         "Start": "2025-06-15",
         "End": "2025-08-15",
         "Budget": 2500,
-        "Lottie": "input/phase2/datacollection.json",
+        "Lottie": "input/phase2/data.json",
         "Details": """
 - Internal/external data acquisition (sales, inventory, supplier, weather, economic, etc)
 - ML-optimized data preparation (forecasting, dynamic pricing, demand modeling)
