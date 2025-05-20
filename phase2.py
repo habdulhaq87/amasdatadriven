@@ -7,13 +7,13 @@ def load_lottie_animation(filepath):
     with open(filepath, "r") as f:
         return json.load(f)
 
-# Phase 2 data with your requested Lottie files
+# Phase 2 data with updated budgets
 phase2_tasks = [
     {
         "Task": "Operational Monitoring & Visualization Dashboard",
         "Start": "2025-06-01",
         "End": "2025-07-15",
-        "Budget": 2500,
+        "Budget": 3000,
         "Lottie": "input/phase2/monitoring.json",
         "Details": """
 - Real-Time Data Room (dashboard, inventory alerts, sales analysis)
@@ -25,7 +25,7 @@ phase2_tasks = [
         "Task": "Security, Performance Testing & Kurdish Translation",
         "Start": "2025-06-15",
         "End": "2025-08-15",
-        "Budget": 2500,
+        "Budget": 2400,
         "Lottie": "input/phase2/security.json",
         "Details": """
 - Penetration testing, load & performance tests, pilot market test
@@ -37,8 +37,8 @@ phase2_tasks = [
         "Task": "Data Collection for Machine Learning",
         "Start": "2025-06-15",
         "End": "2025-08-15",
-        "Budget": 2500,
-        "Lottie": "input/phase2/data.json",
+        "Budget": 2200,
+        "Lottie": "input/phase2/datacollection.json",
         "Details": """
 - Internal/external data acquisition (sales, inventory, supplier, weather, economic, etc)
 - ML-optimized data preparation (forecasting, dynamic pricing, demand modeling)
