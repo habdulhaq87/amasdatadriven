@@ -60,7 +60,7 @@ phase2_tasks = [
         "Task": "Training and Capacity Building",
         "Start": "2025-08-01",
         "End": "2025-08-31",
-        "Budget": 0,
+        "Budget": 1200,
         "Lottie": "input/phase2/helpdesk.json",
         "Details": """
 - Staff & supplier system training (usage, security, D3 dashboards)
