@@ -3,19 +3,18 @@ import pandas as pd
 from streamlit_lottie import st_lottie
 import json
 
-# ----------- Lottie Loader -----------
 def load_lottie_animation(filepath):
     with open(filepath, "r") as f:
         return json.load(f)
 
-# ----------- Phase 2 Data -----------
+# Phase 2 data with your requested Lottie files
 phase2_tasks = [
     {
         "Task": "Operational Monitoring & Visualization Dashboard",
         "Start": "2025-06-01",
         "End": "2025-07-15",
         "Budget": 2500,
-        "Lottie": "input/dashboard.json",  # Place your lottie files accordingly
+        "Lottie": "input/phase2/monitoring.json",
         "Details": """
 - Real-Time Data Room (dashboard, inventory alerts, sales analysis)
 - D3 Visualizations (stacked bar, heatmap, bullet, sunburst, bubble charts)
@@ -27,7 +26,7 @@ phase2_tasks = [
         "Start": "2025-06-15",
         "End": "2025-08-15",
         "Budget": 2500,
-        "Lottie": "input/security.json",
+        "Lottie": "input/phase2/security.json",
         "Details": """
 - Penetration testing, load & performance tests, pilot market test
 - Implement security enhancements
@@ -39,7 +38,7 @@ phase2_tasks = [
         "Start": "2025-06-15",
         "End": "2025-08-15",
         "Budget": 2500,
-        "Lottie": "input/ml.json",
+        "Lottie": "input/phase2/datacollection.json",
         "Details": """
 - Internal/external data acquisition (sales, inventory, supplier, weather, economic, etc)
 - ML-optimized data preparation (forecasting, dynamic pricing, demand modeling)
@@ -50,7 +49,7 @@ phase2_tasks = [
         "Start": "2025-07-01",
         "End": "2025-08-31",
         "Budget": 3000,
-        "Lottie": "input/finance.json",
+        "Lottie": "input/phase2/Automation.json",
         "Details": """
 - Automate supplier payments & invoice reconciliation
 - AI-enabled HR process automation (task analysis, pilot)
@@ -62,7 +61,7 @@ phase2_tasks = [
         "Start": "2025-08-01",
         "End": "2025-08-31",
         "Budget": 0,
-        "Lottie": "input/training.json",
+        "Lottie": "input/phase2/helpdesk.json",
         "Details": """
 - Staff & supplier system training (usage, security, D3 dashboards)
 - Supplier onboarding, continuous feedback
@@ -72,7 +71,6 @@ phase2_tasks = [
 ]
 df = pd.DataFrame(phase2_tasks)
 
-# ----------- Main Renderer -----------
 def render_phase2():
     st.title("Phase 2: Advanced Digitization & Automation")
     st.write("""
