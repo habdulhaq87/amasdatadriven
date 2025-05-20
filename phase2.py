@@ -12,8 +12,8 @@ phase2_tasks = [
     {
         "Task": "Operational Monitoring & Visualization Dashboard",
         "Start": "2025-06-01",
-        "End": "2025-07-15",
-        "Budget": 3000,
+        "End": "2025-08-01",
+        "Budget": 3200,
         "Lottie": "input/phase2/monitoring.json",
         "Details": """
 - Real-Time Data Room (dashboard, inventory alerts, sales analysis)
@@ -25,7 +25,7 @@ phase2_tasks = [
         "Task": "Security, Performance Testing & Kurdish Translation",
         "Start": "2025-06-15",
         "End": "2025-08-15",
-        "Budget": 2400,
+        "Budget": 2300,
         "Lottie": "input/phase2/security.json",
         "Details": """
 - Penetration testing, load & performance tests, pilot market test
@@ -37,7 +37,7 @@ phase2_tasks = [
         "Task": "Data Collection for Machine Learning",
         "Start": "2025-06-15",
         "End": "2025-08-15",
-        "Budget": 2200,
+        "Budget": 1700,
         "Lottie": "input/phase2/datacollection.json",
         "Details": """
 - Internal/external data acquisition (sales, inventory, supplier, weather, economic, etc)
@@ -48,7 +48,7 @@ phase2_tasks = [
         "Task": "Financial & HR Automation",
         "Start": "2025-07-01",
         "End": "2025-08-31",
-        "Budget": 3000,
+        "Budget": 2800,
         "Lottie": "input/phase2/Automation.json",
         "Details": """
 - Automate supplier payments & invoice reconciliation
