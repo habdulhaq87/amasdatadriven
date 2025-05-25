@@ -7,12 +7,28 @@ def load_lottie_animation(filepath):
     with open(filepath, "r") as f:
         return json.load(f)
 
-# Phase 2 data with updated budgets
+# --- Proportionally compressed dates ---
+# Function to scale date within the new window
+from datetime import datetime, timedelta
+
+old_start = datetime(2025,6,1)
+old_end   = datetime(2025,8,31)
+new_start = datetime(2025,6,1)
+new_end   = datetime(2025,7,31)
+
+def scale_date(date_str):
+    d = datetime.strptime(date_str, "%Y-%m-%d")
+    old_span = (old_end - old_start).days
+    new_span = (new_end - new_start).days
+    delta = (d - old_start).days
+    new_delta = round(delta * new_span / old_span)
+    return (new_start + timedelta(days=new_delta)).strftime("%Y-%m-%d")
+
 phase2_tasks = [
     {
         "Task": "Operational Monitoring & Visualization Dashboard",
-        "Start": "2025-06-01",
-        "End": "2025-08-01",
+        "Start": scale_date("2025-06-01"),
+        "End":   scale_date("2025-08-01"),
         "Budget": 3200,
         "Lottie": "input/phase2/monitoring.json",
         "Details": """
@@ -23,8 +39,8 @@ phase2_tasks = [
     },
     {
         "Task": "Security, Performance Testing & Kurdish Translation",
-        "Start": "2025-06-15",
-        "End": "2025-08-15",
+        "Start": scale_date("2025-06-15"),
+        "End":   scale_date("2025-08-15"),
         "Budget": 2300,
         "Lottie": "input/phase2/security.json",
         "Details": """
@@ -35,8 +51,8 @@ phase2_tasks = [
     },
     {
         "Task": "Data Collection for Machine Learning",
-        "Start": "2025-06-15",
-        "End": "2025-08-15",
+        "Start": scale_date("2025-06-15"),
+        "End":   scale_date("2025-08-15"),
         "Budget": 1700,
         "Lottie": "input/phase2/datacollection.json",
         "Details": """
@@ -46,8 +62,8 @@ phase2_tasks = [
     },
     {
         "Task": "Financial & HR Automation",
-        "Start": "2025-07-01",
-        "End": "2025-08-31",
+        "Start": scale_date("2025-07-01"),
+        "End":   scale_date("2025-08-31"),
         "Budget": 2800,
         "Lottie": "input/phase2/Automation.json",
         "Details": """
@@ -58,8 +74,8 @@ phase2_tasks = [
     },
     {
         "Task": "Training and Capacity Building",
-        "Start": "2025-08-01",
-        "End": "2025-08-31",
+        "Start": scale_date("2025-08-01"),
+        "End":   scale_date("2025-08-31"),
         "Budget": 1200,
         "Lottie": "input/phase2/helpdesk.json",
         "Details": """
