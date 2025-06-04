@@ -197,7 +197,8 @@ improved security, robust data for AI, automated finance & HR, and fully trained
 - Build automation scripts (finance, HR)  
 - Support security and localization tasks  
 - Develop scalable data pipelines  
-- Maintain the technical backbone
+- Maintain the technical backbone  
+- **Introduce Phase 1 system to Muhammad Saheed**
                 """
             },
             {
@@ -208,7 +209,8 @@ improved security, robust data for AI, automated finance & HR, and fully trained
 - Pilot and validate Phase 2 modules  
 - Collect performance and feedback logs  
 - Assist in user onboarding and training sessions  
-- Verify and report real-world system behavior
+- Verify and report real-world system behavior  
+- **Learn Phase 1 system from Abdullah**
                 """
             },
         ]
