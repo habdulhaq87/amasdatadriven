@@ -2,19 +2,18 @@ import streamlit as st
 import pandas as pd
 from streamlit_lottie import st_lottie
 import json
+from datetime import datetime, timedelta
 
+# ------------ Lottie Loader ------------
 def load_lottie_animation(filepath):
     with open(filepath, "r") as f:
         return json.load(f)
 
-# --- Proportionally compressed dates ---
-# Function to scale date within the new window
-from datetime import datetime, timedelta
-
-old_start = datetime(2025,6,1)
-old_end   = datetime(2025,8,31)
-new_start = datetime(2025,6,1)
-new_end   = datetime(2025,7,31)
+# ------------ Timeline Scaling Function ------------
+old_start = datetime(2025, 6, 1)
+old_end = datetime(2025, 8, 31)
+new_start = datetime(2025, 6, 1)
+new_end = datetime(2025, 7, 31)
 
 def scale_date(date_str):
     d = datetime.strptime(date_str, "%Y-%m-%d")
@@ -24,11 +23,12 @@ def scale_date(date_str):
     new_delta = round(delta * new_span / old_span)
     return (new_start + timedelta(days=new_delta)).strftime("%Y-%m-%d")
 
+# ------------ Phase 2 Tasks ------------
 phase2_tasks = [
     {
         "Task": "Operational Monitoring & Visualization Dashboard",
         "Start": scale_date("2025-06-01"),
-        "End":   scale_date("2025-08-01"),
+        "End": scale_date("2025-08-01"),
         "Budget": 3200,
         "Lottie": "input/phase2/monitoring.json",
         "Details": """
@@ -40,7 +40,7 @@ phase2_tasks = [
     {
         "Task": "Security, Performance Testing & Kurdish Translation",
         "Start": scale_date("2025-06-15"),
-        "End":   scale_date("2025-08-15"),
+        "End": scale_date("2025-08-15"),
         "Budget": 2300,
         "Lottie": "input/phase2/security.json",
         "Details": """
@@ -52,7 +52,7 @@ phase2_tasks = [
     {
         "Task": "Data Collection for Machine Learning",
         "Start": scale_date("2025-06-15"),
-        "End":   scale_date("2025-08-15"),
+        "End": scale_date("2025-08-15"),
         "Budget": 1700,
         "Lottie": "input/phase2/datacollection.json",
         "Details": """
@@ -63,7 +63,7 @@ phase2_tasks = [
     {
         "Task": "Financial & HR Automation",
         "Start": scale_date("2025-07-01"),
-        "End":   scale_date("2025-08-31"),
+        "End": scale_date("2025-08-31"),
         "Budget": 2800,
         "Lottie": "input/phase2/Automation.json",
         "Details": """
@@ -75,7 +75,7 @@ phase2_tasks = [
     {
         "Task": "Training and Capacity Building",
         "Start": scale_date("2025-08-01"),
-        "End":   scale_date("2025-08-31"),
+        "End": scale_date("2025-08-31"),
         "Budget": 1200,
         "Lottie": "input/phase2/helpdesk.json",
         "Details": """
@@ -85,27 +85,30 @@ phase2_tasks = [
         """
     },
 ]
+
 df = pd.DataFrame(phase2_tasks)
 
+# ------------ Render App ------------
 def render_phase2():
     st.title("Phase 2: Advanced Digitization & Automation")
-    st.write("""
-    This section outlines how AMAS Hypermarket will move forward with **Phase 2** improvements. Four tabs are available below:
 
-    - **Plan**: Detailed overview of each Phase 2 workstream.
-    - **Tasks**: Specific tasks, timelines, budgets, and descriptions.
-    - **Summary**: High-level summary and Gantt-style chart of Phase 2.
-    - **Budget**: Consolidated Phase 2 budget view.
+    st.write("""
+This section outlines how AMAS Hypermarket will move forward with **Phase 2** improvements. Five tabs are available below:
+
+- **Plan**: Detailed overview of each Phase 2 workstream.
+- **Tasks**: Specific tasks, timelines, budgets, and descriptions.
+- **Summary**: High-level summary and Gantt-style chart of Phase 2.
+- **Budget**: Consolidated Phase 2 budget view.
+- **Human Resource**: Team assignments and roles.
     """)
 
-    tab_plan, tab_tasks, tab_summary, tab_budget = st.tabs(["Plan", "Tasks", "Summary", "Budget"])
+    tab_plan, tab_tasks, tab_summary, tab_budget, tab_team = st.tabs(
+        ["Plan", "Tasks", "Summary", "Budget", "Human Resource"]
+    )
 
     # -------- PLAN TAB ---------
     with tab_plan:
         st.subheader("Plan Overview")
-        st.write("""
-Below is a **task-by-task** breakdown of Phase 2 improvements. Each task features relevant Lottie animations, timeline, and main activities.
-        """)
         for i, row in df.iterrows():
             lottie_file = row["Lottie"]
             if i % 2 == 0:
@@ -137,7 +140,6 @@ improved security, robust data for AI, automated finance & HR, and fully trained
     # -------- TASKS TAB ---------
     with tab_tasks:
         st.subheader("Phase 2 Tasks")
-        st.write("Details of each Phase 2 task, with timeline and budget.")
         for _, row in df.iterrows():
             with st.expander(row["Task"]):
                 st.markdown(f"**Timeline:** {row['Start']} to {row['End']}")
@@ -148,7 +150,6 @@ improved security, robust data for AI, automated finance & HR, and fully trained
     # -------- SUMMARY TAB ---------
     with tab_summary:
         st.subheader("Phase 2 Summary")
-        st.write("Below is a summary schedule and table of Phase 2 activities.")
         summary_df = df.copy()
         summary_df["Start"] = pd.to_datetime(summary_df["Start"])
         summary_df["End"] = pd.to_datetime(summary_df["End"])
@@ -162,16 +163,60 @@ improved security, robust data for AI, automated finance & HR, and fully trained
             st.plotly_chart(fig, use_container_width=True)
         except Exception:
             st.info("Install plotly for interactive timeline summary.")
-
         st.dataframe(df[["Task", "Start", "End", "Budget"]], use_container_width=True)
 
     # -------- BUDGET TAB ---------
     with tab_budget:
         st.subheader("Phase 2 Budget")
-        st.write("Overview of budget per Phase 2 workstream.")
         st.dataframe(df[["Task", "Budget"]], use_container_width=True)
         st.markdown(f"### **Total Phase 2 Budget: ${df['Budget'].sum():,}**")
-        st.info("Training and Capacity Building is offered free of charge for this phase.")
+        st.info("Training and Capacity Building is partly covered and optimized for efficiency.")
+
+    # -------- TEAM TAB ---------
+    with tab_team:
+        st.subheader("Human Resource Assignments")
+        st.write("Below is the task allocation by team member.")
+
+        team_data = [
+            {
+                "Name": "Hawkar Ali Abdulhaq",
+                "Role": "Project Lead & Workflow Designer",
+                "Responsibilities": """
+- Design Phase 2 workflows across modules  
+- Define D3 visualization architecture  
+- Supervise schedule and quality  
+- Lead training design and execution  
+- Oversee alignment with AMAS goals
+                """
+            },
+            {
+                "Name": "Abdullah Kawkas",
+                "Role": "Core Developer",
+                "Responsibilities": """
+- Implement dashboards and visual interfaces  
+- Build automation scripts (finance, HR)  
+- Support security and localization tasks  
+- Develop scalable data pipelines  
+- Maintain the technical backbone
+                """
+            },
+            {
+                "Name": "Muhammad Saheed",
+                "Role": "Field Operations & Data",
+                "Responsibilities": """
+- Gather operational/supplier data on-site  
+- Pilot and validate Phase 2 modules  
+- Collect performance and feedback logs  
+- Assist in user onboarding and training sessions  
+- Verify and report real-world system behavior
+                """
+            },
+        ]
+
+        for member in team_data:
+            with st.expander(member["Name"]):
+                st.markdown(f"**Role:** {member['Role']}")
+                st.markdown(member["Responsibilities"])
 
 if __name__ == "__main__":
     render_phase2()
