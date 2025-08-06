@@ -24,6 +24,7 @@ def scale_date(date_str):
     return (new_start + timedelta(days=new_delta)).strftime("%Y-%m-%d")
 
 # ------------ Phase 2 Tasks ------------
+# ------------ Phase 2 Tasks ------------
 phase2_tasks = [
     {
         "Task": "Operational Monitoring & Visualization Dashboard",
@@ -82,6 +83,45 @@ phase2_tasks = [
 - Staff & supplier system training (usage, security, D3 dashboards)
 - Supplier onboarding, continuous feedback
 - User manuals, videos, FAQs
+        """
+    },
+    {
+        "Task": "POS Features & Stock Operations (Native/Mobile)",
+        "Start": scale_date("2025-08-01"),
+        "End": scale_date("2025-08-31"),
+        "Budget": 2500,  # Adjust budget as needed
+        "Lottie": "input/phase2/pos.json",
+        "Details": """
+- Stock Received Management (Native)
+- Stock Received (Mobile)
+- Price Operation (Native)
+- Return (Native)
+        """
+    },
+    {
+        "Task": "Servers, Deployment & Migration",
+        "Start": scale_date("2025-08-01"),
+        "End": scale_date("2025-08-31"),
+        "Budget": 2200,  # Adjust budget as needed
+        "Lottie": "input/phase2/servers.json",
+        "Details": """
+- Global Server Setup
+- Inventory Data Migration
+- Software Installation
+- Rollout Planning & Execution
+        """
+    },
+    {
+        "Task": "Training & Support (Go-Live)",
+        "Start": scale_date("2025-08-01"),
+        "End": scale_date("2025-08-31"),
+        "Budget": 1800,  # Adjust budget as needed
+        "Lottie": "input/phase2/support.json",
+        "Details": """
+- Staff Training (One-on-One, hands-on POS/infra)
+- Go-live troubleshooting & helpdesk
+- Rollback Plan execution if required
+- Ongoing user support during rollout
         """
     },
 ]
