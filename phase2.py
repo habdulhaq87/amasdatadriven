@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 from streamlit_lottie import st_lottie
 import json
-from datetime import datetime
 
 # ------------ Lottie Loader ------------
 def load_lottie_animation(filepath):
