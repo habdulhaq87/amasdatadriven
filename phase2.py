@@ -2,33 +2,19 @@ import streamlit as st
 import pandas as pd
 from streamlit_lottie import st_lottie
 import json
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # ------------ Lottie Loader ------------
 def load_lottie_animation(filepath):
     with open(filepath, "r") as f:
         return json.load(f)
 
-# ------------ Timeline Scaling Function ------------
-old_start = datetime(2025, 6, 1)
-old_end = datetime(2025, 8, 31)
-new_start = datetime(2025, 6, 1)
-new_end = datetime(2025, 7, 31)
-
-def scale_date(date_str):
-    d = datetime.strptime(date_str, "%Y-%m-%d")
-    old_span = (old_end - old_start).days
-    new_span = (new_end - new_start).days
-    delta = (d - old_start).days
-    new_delta = round(delta * new_span / old_span)
-    return (new_start + timedelta(days=new_delta)).strftime("%Y-%m-%d")
-
 # ------------ Phase 2 Tasks ------------
 phase2_tasks = [
     {
         "Task": "Operational Monitoring & Visualization Dashboard",
-        "Start": scale_date("2025-06-01"),
-        "End": scale_date("2025-08-01"),
+        "Start": "2025-06-01",
+        "End": "2025-08-01",
         "Budget": 3200,
         "Lottie": "input/phase2/monitoring.json",
         "Details": """
@@ -39,8 +25,8 @@ phase2_tasks = [
     },
     {
         "Task": "Security, Performance Testing & Kurdish Translation",
-        "Start": scale_date("2025-06-15"),
-        "End": scale_date("2025-08-15"),
+        "Start": "2025-06-15",
+        "End": "2025-08-15",
         "Budget": 2300,
         "Lottie": "input/phase2/security.json",
         "Details": """
@@ -51,8 +37,8 @@ phase2_tasks = [
     },
     {
         "Task": "Data Collection for Machine Learning",
-        "Start": scale_date("2025-06-15"),
-        "End": scale_date("2025-08-15"),
+        "Start": "2025-06-15",
+        "End": "2025-08-15",
         "Budget": 1700,
         "Lottie": "input/phase2/datacollection.json",
         "Details": """
@@ -62,8 +48,8 @@ phase2_tasks = [
     },
     {
         "Task": "Financial & HR Automation",
-        "Start": scale_date("2025-07-01"),
-        "End": scale_date("2025-08-31"),
+        "Start": "2025-07-01",
+        "End": "2025-08-31",
         "Budget": 2800,
         "Lottie": "input/phase2/Automation.json",
         "Details": """
@@ -74,14 +60,50 @@ phase2_tasks = [
     },
     {
         "Task": "Training and Capacity Building",
-        "Start": scale_date("2025-08-01"),
-        "End": scale_date("2025-08-31"),
+        "Start": "2025-08-01",
+        "End": "2025-08-31",
         "Budget": 1200,
         "Lottie": "input/phase2/helpdesk.json",
         "Details": """
 - Staff & supplier system training (usage, security, D3 dashboards)
 - Supplier onboarding, continuous feedback
 - User manuals, videos, FAQs
+        """
+    },
+    {
+        "Task": "Native and Mobile Integration",
+        "Start": "2025-08-01",
+        "End": "2025-08-31",
+        "Budget": 2100,
+        "Lottie": "input/phase2/stock.json",
+        "Details": """
+- Stock Received Management (Native)
+- Stock Received (Mobile)
+- Price Operation (Native)
+- Return (Native)
+        """
+    },
+    {
+        "Task": "Servers & Infrastructure Setup",
+        "Start": "2025-08-01",
+        "End": "2025-08-31",
+        "Budget": 1800,
+        "Lottie": "input/phase2/server.json",
+        "Details": """
+- Global Server Setup
+- Cashier Server Analysis
+        """
+    },
+    {
+        "Task": "Migration & Installation",
+        "Start": "2025-08-01",
+        "End": "2025-08-31",
+        "Budget": 1600,
+        "Lottie": "input/phase2/migration.json",
+        "Details": """
+- Inventory Data Migration
+- Software Installation
+- Troubleshooting & Rollback Plan
         """
     },
 ]
