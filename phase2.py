@@ -14,7 +14,7 @@ phase2_tasks = [
     {
         "Task": "Operational Monitoring & Visualization Dashboard",
         "Start": "2025-06-01",
-        "End": "2025-08-01",
+        "End": "2025-07-31",
         "Budget": 3200,
         "Lottie": "input/phase2/monitoring.json",
         "Details": """
@@ -26,7 +26,7 @@ phase2_tasks = [
     {
         "Task": "Security, Performance Testing & Kurdish Translation",
         "Start": "2025-06-15",
-        "End": "2025-08-15",
+        "End": "2025-07-31",
         "Budget": 2300,
         "Lottie": "input/phase2/security.json",
         "Details": """
@@ -38,7 +38,7 @@ phase2_tasks = [
     {
         "Task": "Data Collection for Machine Learning",
         "Start": "2025-06-15",
-        "End": "2025-08-15",
+        "End": "2025-07-31",
         "Budget": 1700,
         "Lottie": "input/phase2/datacollection.json",
         "Details": """
@@ -49,7 +49,7 @@ phase2_tasks = [
     {
         "Task": "Financial & HR Automation",
         "Start": "2025-07-01",
-        "End": "2025-08-31",
+        "End": "2025-07-31",
         "Budget": 2800,
         "Lottie": "input/phase2/Automation.json",
         "Details": """
@@ -60,8 +60,8 @@ phase2_tasks = [
     },
     {
         "Task": "Training and Capacity Building",
-        "Start": "2025-08-01",
-        "End": "2025-08-31",
+        "Start": "2025-07-01",
+        "End": "2025-07-31",
         "Budget": 1200,
         "Lottie": "input/phase2/helpdesk.json",
         "Details": """
