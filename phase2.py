@@ -74,7 +74,7 @@ phase2_tasks = [
         "Task": "Native and Mobile Integration",
         "Start": "2025-08-01",
         "End": "2025-08-31",
-        "Budget": 2100,
+        "Budget": "XXXX",
         "Lottie": "input/phase2/stock.json",
         "Details": """
 - Stock Received Management (Native)
@@ -87,7 +87,7 @@ phase2_tasks = [
         "Task": "Servers & Infrastructure Setup",
         "Start": "2025-08-01",
         "End": "2025-08-31",
-        "Budget": 1800,
+        "Budget": "XXXX",
         "Lottie": "input/phase2/server.json",
         "Details": """
 - Global Server Setup
@@ -98,7 +98,7 @@ phase2_tasks = [
         "Task": "Migration & Installation",
         "Start": "2025-08-01",
         "End": "2025-08-31",
-        "Budget": 1600,
+        "Budget": "XXXX",
         "Lottie": "input/phase2/migration.json",
         "Details": """
 - Inventory Data Migration
@@ -149,14 +149,17 @@ This section outlines how AMAS Hypermarket will move forward with **Phase 2** im
             with col_text:
                 st.markdown(f"### {row['Task']}")
                 st.markdown(f"**Timeline:** {row['Start']} to {row['End']}")
-                st.markdown(f"**Budget:** ${row['Budget']:,}")
+                st.markdown(f"**Budget:** ${row['Budget'] if isinstance(row['Budget'], int) else row['Budget']}")
                 st.markdown(row['Details'])
             st.write("---")
+
+        # Total budget: skip "XXXX" entries in sum
+        total_budget = sum(row['Budget'] for row in phase2_tasks if isinstance(row['Budget'], int))
 
         st.success(f"""
 By implementing these **Phase 2** steps, AMAS Hypermarket will achieve real-time operational visibility, 
 improved security, robust data for AI, automated finance & HR, and fully trained teams/suppliers.  
-**Total budget:** ${df['Budget'].sum():,}.
+**Total budget (known):** ${total_budget:,} (some budgets pending).
         """)
 
     # -------- TASKS TAB ---------
@@ -165,7 +168,7 @@ improved security, robust data for AI, automated finance & HR, and fully trained
         for _, row in df.iterrows():
             with st.expander(row["Task"]):
                 st.markdown(f"**Timeline:** {row['Start']} to {row['End']}")
-                st.markdown(f"**Budget:** ${row['Budget']:,}")
+                st.markdown(f"**Budget:** ${row['Budget'] if isinstance(row['Budget'], int) else row['Budget']}")
                 st.markdown("**Details:**")
                 st.markdown(row["Details"])
 
@@ -191,8 +194,8 @@ improved security, robust data for AI, automated finance & HR, and fully trained
     with tab_budget:
         st.subheader("Phase 2 Budget")
         st.dataframe(df[["Task", "Budget"]], use_container_width=True)
-        st.markdown(f"### **Total Phase 2 Budget: ${df['Budget'].sum():,}**")
-        st.info("Training and Capacity Building is partly covered and optimized for efficiency.")
+        st.markdown(f"### **Total Phase 2 Budget (known): ${total_budget:,}**")
+        st.info("Some budgets are pending assignment and marked as 'XXXX'.")
 
     # -------- TEAM TAB ---------
     with tab_team:
