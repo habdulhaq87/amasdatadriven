@@ -4,24 +4,19 @@ import mysql.connector
 from mysql.connector import Error
 from datetime import date
 
-# --- Page setup ---
 st.set_page_config(page_title="Finance", layout="wide")
 st.title("💼 Finance")
 
-# --- Open a single connection using st.secrets["mysql"] ---
+# ---- Single connection using st.secrets["mysql"] ----
 cfg = st.secrets["mysql"]
-try:
-    conn = mysql.connector.connect(
-        host=cfg["host"],
-        port=int(cfg["port"]),
-        user=cfg["user"],
-        password=cfg["password"],
-        database=cfg["database"],
-        autocommit=True,
-    )
-except Error as e:
-    st.error(f"Failed to connect to DB: {e}")
-    st.stop()
+conn = mysql.connector.connect(
+    host=cfg["host"],
+    port=int(cfg["port"]),
+    user=cfg["user"],
+    password=cfg["password"],
+    database=cfg["database"],
+    autocommit=True,
+)
 
 tab_budgets, tab_transactions, tab_summary = st.tabs(["📊 Budgets", "📜 Transactions", "📈 Phase Summary"])
 
@@ -38,10 +33,8 @@ with tab_budgets:
     st.subheader("Overall Budget Overview")
 
     try:
-        # Totals
         total_budget_df = pd.read_sql("SELECT COALESCE(SUM(budget_usd),0) AS total_budget FROM budgets", conn)
         total_spend_df  = pd.read_sql("SELECT COALESCE(SUM(amount_usd),0) AS total_spend FROM transactions", conn)
-
         total_budget = float(total_budget_df.iloc[0]["total_budget"]) if not total_budget_df.empty else 0.0
         total_spend  = float(total_spend_df.iloc[0]["total_spend"]) if not total_spend_df.empty else 0.0
         total_remaining = total_budget - total_spend
@@ -53,7 +46,7 @@ with tab_budgets:
 
         st.divider()
 
-        # Per-budget breakdown (schema-aligned)
+        # Per-budget line detail with spend/remaining
         budgets_q = """
             SELECT
                 b.budget_id,
@@ -76,7 +69,6 @@ with tab_budgets:
         """
         df_budgets = pd.read_sql(budgets_q, conn)
 
-        # Optional filter
         with st.expander("Filter"):
             q = st.text_input("Search (Budget Line / Task contains…)", "")
             if q.strip():
@@ -88,14 +80,13 @@ with tab_budgets:
             else:
                 df_view = df_budgets.copy()
 
-        # Pretty numbers
-        show_df = df_view.copy()
+        pretty = df_view.copy()
         for col in ["budget_usd", "spent", "remaining"]:
-            if col in show_df.columns:
-                show_df[col] = show_df[col].apply(money)
+            if col in pretty.columns:
+                pretty[col] = pretty[col].apply(money)
 
         st.dataframe(
-            show_df[[
+            pretty[[
                 "budget_id", "budget_line", "task", "start_date", "end_date",
                 "budget_usd", "spent", "remaining", "justification"
             ]],
@@ -119,7 +110,7 @@ with tab_transactions:
     st.subheader("Transactions")
 
     try:
-        # Budget filter values
+        # Budget dropdown
         budget_lookup = pd.read_sql("SELECT budget_id, budget_line FROM budgets ORDER BY budget_line ASC", conn)
         options = ["(All)"] + budget_lookup["budget_line"].tolist()
         sel_budget_name = st.selectbox("Filter by Budget Line", options, index=0)
@@ -131,7 +122,6 @@ with tab_transactions:
         with c2:
             end_date = st.date_input("End date", value=date.today())
 
-        # Query (aligned to schema)
         base_q = """
             SELECT
                 t.transaction_id,
@@ -178,64 +168,72 @@ with tab_transactions:
         st.error(f"Database error (transactions): {e}")
 
 # =========================
-# 📈 Phase Summary tab
+# 📈 Phase Summary tab (by budget_line)
 # =========================
 with tab_summary:
-    st.subheader("Phase Summary (Budget / USD Amount / Remain)")
+    st.subheader("Phase Summary (by budget_line)")
 
     try:
-        # Group strictly by budgets.budget_line (TEXT in your schema)
-        phase_q = """
+        # Sum of budget_usd per phase from budgets
+        phase_budget_q = """
             SELECT
                 b.budget_line AS phase,
-                COALESCE(SUM(b.budget_usd), 0) AS budget_total,
-                COALESCE(SUM(t.amount_usd), 0) AS spent_total
+                COALESCE(SUM(b.budget_usd), 0) AS budget_total
             FROM budgets b
-            LEFT JOIN transactions t ON t.budget_id = b.budget_id
             GROUP BY b.budget_line
             ORDER BY b.budget_line
         """
-        df_phase = pd.read_sql(phase_q, conn)
+        df_budget = pd.read_sql(phase_budget_q, conn)
 
-        if df_phase.empty:
-            st.info("No data yet.")
-        else:
-            df_phase["remain"] = df_phase["budget_total"] - df_phase["spent_total"]
+        # Sum of amount_usd per phase from transactions (joined through budget_id)
+        phase_spend_q = """
+            SELECT
+                b.budget_line AS phase,
+                COALESCE(SUM(t.amount_usd), 0) AS spent_total
+            FROM transactions t
+            JOIN budgets b ON b.budget_id = t.budget_id
+            GROUP BY b.budget_line
+            ORDER BY b.budget_line
+        """
+        df_spend = pd.read_sql(phase_spend_q, conn)
 
-            # Totals row
-            total_row = pd.DataFrame([{
-                "phase": "Total",
-                "budget_total": df_phase["budget_total"].sum(),
-                "spent_total": df_phase["spent_total"].sum(),
-                "remain": df_phase["remain"].sum()
-            }])
-            df_out = pd.concat([df_phase, total_row], ignore_index=True)
+        # Merge and compute remain
+        df_phase = pd.merge(df_budget, df_spend, on="phase", how="left").fillna({"spent_total": 0})
+        df_phase["remain"] = df_phase["budget_total"] - df_phase["spent_total"]
 
-            # Rename/format to your display
-            show = df_out.rename(columns={
-                "phase": "Phases",
-                "budget_total": "Budget",
-                "spent_total": "USD Amount",
-                "remain": "Remain"
-            }).copy()
+        # Totals row (exact per schema)
+        total_row = pd.DataFrame([{
+            "phase": "Total",
+            "budget_total": df_phase["budget_total"].sum(),
+            "spent_total": df_phase["spent_total"].sum(),
+            "remain": (df_phase["budget_total"].sum() - df_phase["spent_total"].sum())
+        }])
+        df_out = pd.concat([df_phase, total_row], ignore_index=True)
 
-            # Pretty formatting
-            for col in ["Budget", "USD Amount", "Remain"]:
-                show[col] = show[col].apply(money)
+        # Pretty headers + currency
+        show = df_out.rename(columns={
+            "phase": "Phases",
+            "budget_total": "Budget",
+            "spent_total": "USD Amount",
+            "remain": "Remain"
+        }).copy()
 
-            st.dataframe(show, use_container_width=True)
+        for col in ["Budget", "USD Amount", "Remain"]:
+            show[col] = show[col].apply(money)
 
-            st.download_button(
-                "⬇️ Download Phase Summary CSV",
-                data=df_out.to_csv(index=False).encode("utf-8"),
-                file_name="phase_summary.csv",
-                mime="text/csv"
-            )
+        st.dataframe(show, use_container_width=True)
+
+        st.download_button(
+            "⬇️ Download Phase Summary CSV",
+            data=df_out.to_csv(index=False).encode("utf-8"),
+            file_name="phase_summary.csv",
+            mime="text/csv"
+        )
 
     except Error as e:
         st.error(f"Database error (summary): {e}")
 
-# --- Close connection when page finishes ---
+# ---- Close connection at the end ----
 try:
     conn.close()
 except:
