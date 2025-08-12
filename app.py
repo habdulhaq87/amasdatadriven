@@ -3,8 +3,9 @@ import vision
 import current
 import home
 import phase1
-import phase2  # <--- ADD THIS IMPORT
+import phase2
 import report
+import finance  # <-- NEW: Finance page module
 
 def main():
     st.set_page_config(page_title="Amas Data-Driven Strategy", layout="wide")
@@ -29,13 +30,14 @@ def main():
     st.sidebar.title("Navigation")
     st.sidebar.markdown("### AMAS's Data-Driven Strategy for 2025")
 
-    # Add "Phase 2" to pages
+    # Add "Finance" to pages
     pages = {
         "Home": "Home",
         "Current Stage": "Current Stage",
         "Vision": "Vision",
         "Phase 1": "Phase 1",
-        "Phase 2": "Phase 2",   # <--- NEW PAGE
+        "Phase 2": "Phase 2",
+        "Finance": "Finance",          # <-- NEW PAGE
     }
 
     active_page = "Home"
@@ -81,7 +83,12 @@ def main():
     elif active_page == "Phase 1":
         phase1.render_phase1()
     elif active_page == "Phase 2":
-        phase2.render_phase2()   # <--- PHASE 2 CALL
+        phase2.render_phase2()
+    elif active_page == "Finance":
+        # Expecting your finance module to render the page when imported
+        # If you defined a function like render_finance(), call it instead:
+        # finance.render_finance()
+        pass
 
 if __name__ == "__main__":
     main()
