@@ -4,10 +4,15 @@ import mysql.connector
 from mysql.connector import Error
 from datetime import date
 
+# ---------------------------------------
+# Page setup
+# ---------------------------------------
 st.set_page_config(page_title="Finance", layout="wide")
 st.title("💼 Finance")
 
-# ---- Single connection using st.secrets["mysql"] ----
+# ---------------------------------------
+# DB connection (from st.secrets)
+# ---------------------------------------
 cfg = st.secrets["mysql"]
 conn = mysql.connector.connect(
     host=cfg["host"],
@@ -26,86 +31,130 @@ def money(x):
     except Exception:
         return x
 
-# =========================
-# 📊 Budgets tab
-# =========================
+# ======================================================
+# 📊 Budgets tab — PHASE CARDS (no big table)
+# ======================================================
 with tab_budgets:
-    st.subheader("Overall Budget Overview")
+    st.subheader("Budgets by Phase")
 
     try:
-        total_budget_df = pd.read_sql("SELECT COALESCE(SUM(budget_usd),0) AS total_budget FROM budgets", conn)
-        total_spend_df  = pd.read_sql("SELECT COALESCE(SUM(amount_usd),0) AS total_spend FROM transactions", conn)
-        total_budget = float(total_budget_df.iloc[0]["total_budget"]) if not total_budget_df.empty else 0.0
-        total_spend  = float(total_spend_df.iloc[0]["total_spend"]) if not total_spend_df.empty else 0.0
-        total_remaining = total_budget - total_spend
+        # Phase-level totals (one row per budget_line / phase)
+        q_phase_budget = """
+            SELECT
+                b.budget_line AS phase,
+                COALESCE(SUM(b.budget_usd), 0) AS budget_total
+            FROM budgets b
+            GROUP BY b.budget_line
+            ORDER BY b.budget_line
+        """
+        df_phase_budget = pd.read_sql(q_phase_budget, conn)
 
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Total Budget", money(total_budget))
-        c2.metric("Total Spending", money(total_spend))
-        c3.metric("Remaining", money(total_remaining))
+        q_phase_spent = """
+            SELECT
+                b.budget_line AS phase,
+                COALESCE(SUM(t.amount_usd), 0) AS spent_total
+            FROM transactions t
+            JOIN budgets b ON b.budget_id = t.budget_id
+            GROUP BY b.budget_line
+            ORDER BY b.budget_line
+        """
+        df_phase_spent = pd.read_sql(q_phase_spent, conn)
 
-        st.divider()
+        # Merge totals
+        df_cards = pd.merge(df_phase_budget, df_phase_spent, on="phase", how="left").fillna({"spent_total": 0})
+        df_cards["remaining_total"] = df_cards["budget_total"] - df_cards["spent_total"]
 
-        # Per-budget line detail with spend/remaining
-        budgets_q = """
+        # Details per budget item to show inside each card
+        q_items = """
             SELECT
                 b.budget_id,
-                b.budget_line,
+                b.budget_line AS phase,
                 b.task,
-                b.sub_tasks,
                 b.start_date,
                 b.end_date,
                 b.budget_usd,
-                COALESCE(t.spent, 0) AS spent,
-                (COALESCE(b.budget_usd,0) - COALESCE(t.spent,0)) AS remaining,
+                COALESCE(x.spent, 0) AS spent,
+                (COALESCE(b.budget_usd,0) - COALESCE(x.spent,0)) AS remaining,
                 b.justification
             FROM budgets b
             LEFT JOIN (
                 SELECT budget_id, SUM(amount_usd) AS spent
                 FROM transactions
                 GROUP BY budget_id
-            ) t ON b.budget_id = t.budget_id
-            ORDER BY b.budget_id ASC
+            ) x ON x.budget_id = b.budget_id
+            ORDER BY b.budget_line, b.budget_id
         """
-        df_budgets = pd.read_sql(budgets_q, conn)
+        df_items = pd.read_sql(q_items, conn)
 
-        with st.expander("Filter"):
-            q = st.text_input("Search (Budget Line / Task contains…)", "")
-            if q.strip():
-                mask = (
-                    df_budgets["budget_line"].str.contains(q, case=False, na=False) |
-                    df_budgets["task"].str.contains(q, case=False, na=False)
-                )
-                df_view = df_budgets[mask].copy()
-            else:
-                df_view = df_budgets.copy()
+        # Card grid (2 or 3 per row depending on width — we’ll do 3)
+        if df_cards.empty:
+            st.info("No budgets found yet.")
+        else:
+            cols_per_row = 3
+            rows = (len(df_cards) + cols_per_row - 1) // cols_per_row
+            idx = 0
+            for _ in range(rows):
+                columns = st.columns(cols_per_row)
+                for c in columns:
+                    if idx >= len(df_cards):
+                        break
+                    row = df_cards.iloc[idx]
+                    phase_name = row["phase"]
+                    budget_total = float(row["budget_total"])
+                    spent_total = float(row["spent_total"])
+                    remaining_total = float(row["remaining_total"])
 
-        pretty = df_view.copy()
-        for col in ["budget_usd", "spent", "remaining"]:
-            if col in pretty.columns:
-                pretty[col] = pretty[col].apply(money)
+                    with c:
+                        # Card container
+                        with st.container(border=True):
+                            st.markdown(f"### {phase_name}")
+                            m1, m2, m3 = st.columns(3)
+                            m1.metric("Budget", money(budget_total))
+                            m2.metric("Spent", money(spent_total))
+                            m3.metric("Remaining", money(remaining_total))
 
-        st.dataframe(
-            pretty[[
-                "budget_id", "budget_line", "task", "start_date", "end_date",
-                "budget_usd", "spent", "remaining", "justification"
-            ]],
-            use_container_width=True,
-        )
+                            # Mini details: tasks count + date span
+                            items_this = df_items[df_items["phase"] == phase_name].copy()
+                            tasks_count = len(items_this)
+                            if not items_this.empty:
+                                start_min = items_this["start_date"].min()
+                                end_max = items_this["end_date"].max()
+                                st.caption(f"Tasks: **{tasks_count}**  |  Timeline: **{start_min} → {end_max}**")
+                            else:
+                                st.caption("Tasks: **0**")
 
-        st.download_button(
-            "⬇️ Download Budgets CSV",
-            data=df_view.to_csv(index=False).encode("utf-8"),
-            file_name="budgets_overview.csv",
-            mime="text/csv"
-        )
+                            # Expand for per-task details
+                            with st.expander("Details"):
+                                if items_this.empty:
+                                    st.write("No items in this phase yet.")
+                                else:
+                                    # Show a small, readable table for the phase only
+                                    view = items_this[[
+                                        "task", "start_date", "end_date", "budget_usd", "spent", "remaining", "justification"
+                                    ]].copy()
+                                    # Pretty money
+                                    for col in ["budget_usd", "spent", "remaining"]:
+                                        view[col] = view[col].apply(money)
+                                    st.dataframe(view, use_container_width=True, height=260)
+
+                    idx += 1
+
+            # Global summary metrics at the bottom
+            st.divider()
+            total_budget = float(df_cards["budget_total"].sum())
+            total_spent = float(df_cards["spent_total"].sum())
+            total_remaining = total_budget - total_spent
+            g1, g2, g3 = st.columns(3)
+            g1.metric("Total Budget (All Phases)", money(total_budget))
+            g2.metric("Total Spending (All Phases)", money(total_spent))
+            g3.metric("Total Remaining (All Phases)", money(total_remaining))
 
     except Error as e:
-        st.error(f"Database error (budgets): {e}")
+        st.error(f"Database error (Budgets tab): {e}")
 
-# =========================
-# 📜 Transactions tab
-# =========================
+# ======================================================
+# 📜 Transactions tab — filterable list
+# ======================================================
 with tab_transactions:
     st.subheader("Transactions")
 
@@ -143,6 +192,7 @@ with tab_transactions:
 
         df_tx = pd.read_sql(base_q, conn, params=params)
 
+        # Totals
         tx_total = float(df_tx["amount_usd"].sum()) if not df_tx.empty else 0.0
         st.metric("Total in view", money(tx_total))
 
@@ -165,16 +215,15 @@ with tab_transactions:
         )
 
     except Error as e:
-        st.error(f"Database error (transactions): {e}")
+        st.error(f"Database error (Transactions tab): {e}")
 
-# =========================
-# 📈 Phase Summary tab (by budget_line)
-# =========================
+# ======================================================
+# 📈 Phase Summary tab — totals row included
+# ======================================================
 with tab_summary:
-    st.subheader("Phase Summary (by budget_line)")
+    st.subheader("Phase Summary (Budget vs. Spent vs. Remain)")
 
     try:
-        # Sum of budget_usd per phase from budgets
         phase_budget_q = """
             SELECT
                 b.budget_line AS phase,
@@ -185,7 +234,6 @@ with tab_summary:
         """
         df_budget = pd.read_sql(phase_budget_q, conn)
 
-        # Sum of amount_usd per phase from transactions (joined through budget_id)
         phase_spend_q = """
             SELECT
                 b.budget_line AS phase,
@@ -197,11 +245,10 @@ with tab_summary:
         """
         df_spend = pd.read_sql(phase_spend_q, conn)
 
-        # Merge and compute remain
+        # Merge & compute remain
         df_phase = pd.merge(df_budget, df_spend, on="phase", how="left").fillna({"spent_total": 0})
         df_phase["remain"] = df_phase["budget_total"] - df_phase["spent_total"]
 
-        # Totals row (exact per schema)
         total_row = pd.DataFrame([{
             "phase": "Total",
             "budget_total": df_phase["budget_total"].sum(),
@@ -210,14 +257,12 @@ with tab_summary:
         }])
         df_out = pd.concat([df_phase, total_row], ignore_index=True)
 
-        # Pretty headers + currency
         show = df_out.rename(columns={
             "phase": "Phases",
             "budget_total": "Budget",
             "spent_total": "USD Amount",
             "remain": "Remain"
         }).copy()
-
         for col in ["Budget", "USD Amount", "Remain"]:
             show[col] = show[col].apply(money)
 
@@ -231,9 +276,11 @@ with tab_summary:
         )
 
     except Error as e:
-        st.error(f"Database error (summary): {e}")
+        st.error(f"Database error (Summary tab): {e}")
 
-# ---- Close connection at the end ----
+# ---------------------------------------
+# Close connection
+# ---------------------------------------
 try:
     conn.close()
 except:
