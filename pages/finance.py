@@ -4,19 +4,24 @@ import mysql.connector
 from mysql.connector import Error
 from datetime import date
 
+# --- Page setup ---
 st.set_page_config(page_title="Finance", layout="wide")
 st.title("💼 Finance")
 
-# ---- Open a connection using st.secrets["mysql"] ----
+# --- Open a single connection using st.secrets["mysql"] ---
 cfg = st.secrets["mysql"]
-conn = mysql.connector.connect(
-    host=cfg["host"],
-    port=int(cfg["port"]),
-    user=cfg["user"],
-    password=cfg["password"],
-    database=cfg["database"],
-    autocommit=True,
-)
+try:
+    conn = mysql.connector.connect(
+        host=cfg["host"],
+        port=int(cfg["port"]),
+        user=cfg["user"],
+        password=cfg["password"],
+        database=cfg["database"],
+        autocommit=True,
+    )
+except Error as e:
+    st.error(f"Failed to connect to DB: {e}")
+    st.stop()
 
 tab_budgets, tab_transactions, tab_summary = st.tabs(["📊 Budgets", "📜 Transactions", "📈 Phase Summary"])
 
@@ -33,8 +38,10 @@ with tab_budgets:
     st.subheader("Overall Budget Overview")
 
     try:
+        # Totals
         total_budget_df = pd.read_sql("SELECT COALESCE(SUM(budget_usd),0) AS total_budget FROM budgets", conn)
         total_spend_df  = pd.read_sql("SELECT COALESCE(SUM(amount_usd),0) AS total_spend FROM transactions", conn)
+
         total_budget = float(total_budget_df.iloc[0]["total_budget"]) if not total_budget_df.empty else 0.0
         total_spend  = float(total_spend_df.iloc[0]["total_spend"]) if not total_spend_df.empty else 0.0
         total_remaining = total_budget - total_spend
@@ -46,6 +53,7 @@ with tab_budgets:
 
         st.divider()
 
+        # Per-budget breakdown (schema-aligned)
         budgets_q = """
             SELECT
                 b.budget_id,
@@ -68,6 +76,7 @@ with tab_budgets:
         """
         df_budgets = pd.read_sql(budgets_q, conn)
 
+        # Optional filter
         with st.expander("Filter"):
             q = st.text_input("Search (Budget Line / Task contains…)", "")
             if q.strip():
@@ -79,6 +88,7 @@ with tab_budgets:
             else:
                 df_view = df_budgets.copy()
 
+        # Pretty numbers
         show_df = df_view.copy()
         for col in ["budget_usd", "spent", "remaining"]:
             if col in show_df.columns:
@@ -92,8 +102,12 @@ with tab_budgets:
             use_container_width=True,
         )
 
-        csv_b = df_view.to_csv(index=False).encode("utf-8")
-        st.download_button("⬇️ Download Budgets CSV", data=csv_b, file_name="budgets_overview.csv", mime="text/csv")
+        st.download_button(
+            "⬇️ Download Budgets CSV",
+            data=df_view.to_csv(index=False).encode("utf-8"),
+            file_name="budgets_overview.csv",
+            mime="text/csv"
+        )
 
     except Error as e:
         st.error(f"Database error (budgets): {e}")
@@ -105,7 +119,7 @@ with tab_transactions:
     st.subheader("Transactions")
 
     try:
-        # Budget dropdown
+        # Budget filter values
         budget_lookup = pd.read_sql("SELECT budget_id, budget_line FROM budgets ORDER BY budget_line ASC", conn)
         options = ["(All)"] + budget_lookup["budget_line"].tolist()
         sel_budget_name = st.selectbox("Filter by Budget Line", options, index=0)
@@ -117,6 +131,7 @@ with tab_transactions:
         with c2:
             end_date = st.date_input("End date", value=date.today())
 
+        # Query (aligned to schema)
         base_q = """
             SELECT
                 t.transaction_id,
@@ -152,8 +167,12 @@ with tab_transactions:
             use_container_width=True
         )
 
-        csv_t = df_tx.to_csv(index=False).encode("utf-8")
-        st.download_button("⬇️ Download Transactions CSV", data=csv_t, file_name="transactions_view.csv", mime="text/csv")
+        st.download_button(
+            "⬇️ Download Transactions CSV",
+            data=df_tx.to_csv(index=False).encode("utf-8"),
+            file_name="transactions_view.csv",
+            mime="text/csv"
+        )
 
     except Error as e:
         st.error(f"Database error (transactions): {e}")
@@ -162,9 +181,10 @@ with tab_transactions:
 # 📈 Phase Summary tab
 # =========================
 with tab_summary:
-    st.subheader("Phase Summary (Budget vs. Spent vs. Remain)")
+    st.subheader("Phase Summary (Budget / USD Amount / Remain)")
 
     try:
+        # Group strictly by budgets.budget_line (TEXT in your schema)
         phase_q = """
             SELECT
                 b.budget_line AS phase,
@@ -191,7 +211,7 @@ with tab_summary:
             }])
             df_out = pd.concat([df_phase, total_row], ignore_index=True)
 
-            # Pretty print
+            # Rename/format to your display
             show = df_out.rename(columns={
                 "phase": "Phases",
                 "budget_total": "Budget",
@@ -199,19 +219,23 @@ with tab_summary:
                 "remain": "Remain"
             }).copy()
 
+            # Pretty formatting
             for col in ["Budget", "USD Amount", "Remain"]:
                 show[col] = show[col].apply(money)
 
             st.dataframe(show, use_container_width=True)
 
-            # Download
-            csv_phase = df_out.to_csv(index=False).encode("utf-8")
-            st.download_button("⬇️ Download Phase Summary CSV", data=csv_phase, file_name="phase_summary.csv", mime="text/csv")
+            st.download_button(
+                "⬇️ Download Phase Summary CSV",
+                data=df_out.to_csv(index=False).encode("utf-8"),
+                file_name="phase_summary.csv",
+                mime="text/csv"
+            )
 
     except Error as e:
         st.error(f"Database error (summary): {e}")
 
-# ---- Close connection at the end ----
+# --- Close connection when page finishes ---
 try:
     conn.close()
 except:
