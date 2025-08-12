@@ -18,7 +18,7 @@ conn = mysql.connector.connect(
     autocommit=True,
 )
 
-tab_budgets, tab_transactions = st.tabs(["📊 Budgets", "📜 Transactions"])
+tab_budgets, tab_transactions, tab_summary = st.tabs(["📊 Budgets", "📜 Transactions", "📈 Phase Summary"])
 
 def money(x):
     try:
@@ -73,8 +73,6 @@ with tab_budgets:
             if q.strip():
                 mask = (
                     df_budgets["budget_line"].str.contains(q, case=False, na=False) |
-                    df_budgets["task"].str_contains(q, case=False, na=False)
-                    if hasattr(df_budgets["task"], "str_contains") else
                     df_budgets["task"].str.contains(q, case=False, na=False)
                 )
                 df_view = df_budgets[mask].copy()
@@ -159,8 +157,62 @@ with tab_transactions:
 
     except Error as e:
         st.error(f"Database error (transactions): {e}")
-    finally:
-        try:
-            conn.close()
-        except:
-            pass
+
+# =========================
+# 📈 Phase Summary tab
+# =========================
+with tab_summary:
+    st.subheader("Phase Summary (Budget vs. Spent vs. Remain)")
+
+    try:
+        phase_q = """
+            SELECT
+                b.budget_line AS phase,
+                COALESCE(SUM(b.budget_usd), 0) AS budget_total,
+                COALESCE(SUM(t.amount_usd), 0) AS spent_total
+            FROM budgets b
+            LEFT JOIN transactions t ON t.budget_id = b.budget_id
+            GROUP BY b.budget_line
+            ORDER BY b.budget_line
+        """
+        df_phase = pd.read_sql(phase_q, conn)
+
+        if df_phase.empty:
+            st.info("No data yet.")
+        else:
+            df_phase["remain"] = df_phase["budget_total"] - df_phase["spent_total"]
+
+            # Totals row
+            total_row = pd.DataFrame([{
+                "phase": "Total",
+                "budget_total": df_phase["budget_total"].sum(),
+                "spent_total": df_phase["spent_total"].sum(),
+                "remain": df_phase["remain"].sum()
+            }])
+            df_out = pd.concat([df_phase, total_row], ignore_index=True)
+
+            # Pretty print
+            show = df_out.rename(columns={
+                "phase": "Phases",
+                "budget_total": "Budget",
+                "spent_total": "USD Amount",
+                "remain": "Remain"
+            }).copy()
+
+            for col in ["Budget", "USD Amount", "Remain"]:
+                show[col] = show[col].apply(money)
+
+            st.dataframe(show, use_container_width=True)
+
+            # Download
+            csv_phase = df_out.to_csv(index=False).encode("utf-8")
+            st.download_button("⬇️ Download Phase Summary CSV", data=csv_phase, file_name="phase_summary.csv", mime="text/csv")
+
+    except Error as e:
+        st.error(f"Database error (summary): {e}")
+
+# ---- Close connection at the end ----
+try:
+    conn.close()
+except:
+    pass
