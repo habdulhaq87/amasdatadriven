@@ -1,337 +1,380 @@
-import sys
+import streamlit as st
 import pandas as pd
-from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QTableView, QApplication,
-    QMessageBox, QPushButton, QHBoxLayout, QCheckBox, QTabWidget, QComboBox, QLineEdit, QDateEdit
-)
-from PyQt5.QtCore import Qt, QDate, QAbstractTableModel, QVariant
-from db_handler import DatabaseManager  # Use your actual import
+import mysql.connector
+from mysql.connector import Error
+from datetime import date
 
-class PandasModel(QAbstractTableModel):
-    def __init__(self, df=pd.DataFrame()):
-        super().__init__()
-        self._df = df.copy()
-        self._headers = list(self._df.columns)
+def render_finance():
+    st.title("💼 Finance")
 
-    def setDataFrame(self, df):
-        self.beginResetModel()
-        self._df = df.copy()
-        self._headers = list(self._df.columns)
-        self.endResetModel()
+    # ---------------------------------------
+    # DB connection (from st.secrets)
+    # ---------------------------------------
+    cfg = st.secrets["mysql"]
+    conn = mysql.connector.connect(
+        host=cfg["host"],
+        port=int(cfg["port"]),
+        user=cfg["user"],
+        password=cfg["password"],
+        database=cfg["database"],
+        autocommit=True,
+    )
 
-    def rowCount(self, parent=None):
-        return len(self._df)
+    tab_budgets, tab_transactions, tab_summary, tab_entry = st.tabs(
+        ["📊 Budgets", "📜 Transactions", "📈 Phase Summary", "➕ New Transaction"]
+    )
 
-    def columnCount(self, parent=None):
-        return len(self._df.columns)
-
-    def data(self, index, role=Qt.DisplayRole):
-        if not index.isValid():
-            return QVariant()
-        value = self._df.iloc[index.row(), index.column()]
-        if role == Qt.DisplayRole:
-            if isinstance(value, float):
-                # Format Total Price
-                if self._headers[index.column()] == "Total Price":
-                    return f"{value:,.2f}"
-                else:
-                    return f"{value:,.2f}" if abs(value) > 1000 else str(value)
-            return str(value)
-        return QVariant()
-
-    def headerData(self, section, orientation, role=Qt.DisplayRole):
-        if role == Qt.DisplayRole:
-            if orientation == Qt.Horizontal:
-                return self._headers[section]
-            else:
-                return section + 1
-        return QVariant()
-
-    def flags(self, index):
-        return Qt.ItemIsEnabled | Qt.ItemIsSelectable
-
-class InventoryTab(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("Inventory Overview")
-        self.db = DatabaseManager()
-        self.inventory_df = pd.DataFrame()
-        self.supplier_df = pd.DataFrame()
-        self.setLayout(QVBoxLayout())
-
-        self.tabs = QTabWidget()
-        self.layout().addWidget(self.tabs)
-
-        # Main inventory tab
-        self.main_widget = QWidget()
-        self.main_layout = QVBoxLayout(self.main_widget)
-        self._build_main_tab()
-        self.tabs.addTab(self.main_widget, "All Inventory")
-
-        # By supplier tab
-        self.supplier_widget = QWidget()
-        self.supplier_layout = QVBoxLayout(self.supplier_widget)
-        self._build_supplier_tab()
-        self.tabs.addTab(self.supplier_widget, "By Supplier")
-
-        self.load_inventory()
-
-    # -------- Main Inventory Tab --------
-
-    def _build_main_tab(self):
-        main_layout = self.main_layout
-
-        self.total_label = QLabel("")
-        self.total_label.setStyleSheet("font-size:1.4rem;font-weight:700;color:#2563eb;margin-bottom:12px;")
-        main_layout.addWidget(self.total_label)
-
-        btn_box = QHBoxLayout()
-        self.all_date_filter_checkbox = QCheckBox("Enable date filter")
-        self.all_date_filter_checkbox.setChecked(True)
-        self.all_date_filter_checkbox.stateChanged.connect(self.update_table)
-        btn_box.addWidget(self.all_date_filter_checkbox)
-
-        btn_box.addWidget(QLabel("From:"))
-        self.all_from_date = QDateEdit()
-        self.all_from_date.setDisplayFormat("yyyy-MM-dd")
-        self.all_from_date.setCalendarPopup(True)
-        one_month_ago = QDate.currentDate().addMonths(-1)
-        self.all_from_date.setDate(one_month_ago)
-        self.all_from_date.setSpecialValueText("")
-        btn_box.addWidget(self.all_from_date)
-        btn_box.addWidget(QLabel("To:"))
-        self.all_to_date = QDateEdit()
-        self.all_to_date.setDisplayFormat("yyyy-MM-dd")
-        self.all_to_date.setCalendarPopup(True)
-        self.all_to_date.setDate(QDate.currentDate())
-        self.all_to_date.setSpecialValueText("")
-        btn_box.addWidget(self.all_to_date)
-
-        self.sort_checkbox = QCheckBox("Sort by value: highest first")
-        self.sort_checkbox.stateChanged.connect(self.update_table)
-        btn_box.addWidget(self.sort_checkbox)
-
-        self.refresh_btn = QPushButton("Refresh")
-        self.refresh_btn.clicked.connect(self.load_inventory)
-        btn_box.addWidget(self.refresh_btn)
-        btn_box.addStretch()
-        main_layout.addLayout(btn_box)
-
-        # QTableView + PandasModel for main table
-        self.table = QTableView()
-        self.table.setSortingEnabled(False)
-        self.model = PandasModel(pd.DataFrame())
-        self.table.setModel(self.model)
-        self.table.horizontalHeader().setStretchLastSection(True)
-        main_layout.addWidget(self.table)
-
-        self.all_from_date.dateChanged.connect(self.update_table)
-        self.all_to_date.dateChanged.connect(self.update_table)
-
-    # -------- By Supplier Tab --------
-
-    def _build_supplier_tab(self):
-        supplier_layout = self.supplier_layout
-
-        sup_box = QHBoxLayout()
-        sup_box.addWidget(QLabel("Supplier:"))
-        self.supplier_combo = QComboBox()
-        self.supplier_combo.currentIndexChanged.connect(self.update_supplier_table)
-        sup_box.addWidget(self.supplier_combo)
-        sup_box.addWidget(QLabel("or Type:"))
-        self.supplier_search = QLineEdit()
-        self.supplier_search.setPlaceholderText("Type supplier name...")
-        sup_box.addWidget(self.supplier_search)
-
-        self.supplier_date_filter_checkbox = QCheckBox("Enable date filter")
-        self.supplier_date_filter_checkbox.setChecked(True)
-        self.supplier_date_filter_checkbox.stateChanged.connect(self.update_supplier_table)
-        sup_box.addWidget(self.supplier_date_filter_checkbox)
-
-        sup_box.addWidget(QLabel("From:"))
-        self.from_date = QDateEdit()
-        self.from_date.setDisplayFormat("yyyy-MM-dd")
-        self.from_date.setCalendarPopup(True)
-        one_month_ago = QDate.currentDate().addMonths(-1)
-        self.from_date.setDate(one_month_ago)
-        self.from_date.setSpecialValueText("")
-        sup_box.addWidget(self.from_date)
-        sup_box.addWidget(QLabel("To:"))
-        self.to_date = QDateEdit()
-        self.to_date.setDisplayFormat("yyyy-MM-dd")
-        self.to_date.setCalendarPopup(True)
-        self.to_date.setDate(QDate.currentDate())
-        self.to_date.setSpecialValueText("")
-        sup_box.addWidget(self.to_date)
-        sup_box.addStretch()
-        supplier_layout.addLayout(sup_box)
-
-        self.supplier_total_label = QLabel("")
-        self.supplier_total_label.setStyleSheet("font-size:1.2rem;font-weight:700;color:#059669;margin-bottom:10px;")
-        supplier_layout.addWidget(self.supplier_total_label)
-
-        # QTableView + PandasModel for supplier table
-        self.supplier_table = QTableView()
-        self.supplier_model = PandasModel(pd.DataFrame())
-        self.supplier_table.setModel(self.supplier_model)
-        self.supplier_table.horizontalHeader().setStretchLastSection(True)
-        supplier_layout.addWidget(self.supplier_table)
-
-        self.supplier_search.textChanged.connect(self._on_supplier_search_changed)
-        self.from_date.dateChanged.connect(self.update_supplier_table)
-        self.to_date.dateChanged.connect(self.update_supplier_table)
-
-    # -------- Inventory Data --------
-
-    def load_inventory(self):
+    def money(x):
         try:
-            sql = """
-                SELECT inv.batchid, inv.itemid, inv.quantity, inv.expirationdate, inv.storagelocation,
-                       inv.datereceived, inv.lastupdated, inv.cost_per_unit, inv.poid, inv.costid,
-                       s.suppliername AS supplier
-                FROM inventory inv
-                LEFT JOIN itemsupplier its ON inv.itemid = its.itemid
-                LEFT JOIN supplier s ON its.supplierid = s.supplierid
-                ORDER BY inv.batchid
+            return f"${float(x):,.2f}"
+        except Exception:
+            return x
+
+    # ======================================================
+    # 📊 Budgets tab — Vertical phase cards
+    # ======================================================
+    with tab_budgets:
+        st.subheader("Budgets by Phase")
+
+        try:
+            q_phase_budget = """
+                SELECT
+                    b.budget_line AS phase,
+                    COALESCE(SUM(b.budget_usd), 0) AS budget_total
+                FROM budgets b
+                GROUP BY b.budget_line
+                ORDER BY b.budget_line
             """
-            df = self.db.fetch_data(sql)
-        except Exception as e:
-            QMessageBox.critical(self, "DB error", str(e))
-            self.inventory_df = pd.DataFrame()
-            self.supplier_df = pd.DataFrame()
-            self.update_table()
-            self.update_supplier_table()
-            return
+            df_phase_budget = pd.read_sql(q_phase_budget, conn)
 
-        if df.empty:
-            self.inventory_df = pd.DataFrame()
-            self.supplier_df = pd.DataFrame()
-            self.update_table()
-            self.update_supplier_table()
-            return
+            q_phase_spent = """
+                SELECT
+                    b.budget_line AS phase,
+                    COALESCE(SUM(t.amount_usd), 0) AS spent_total
+                FROM transactions t
+                JOIN budgets b ON b.budget_id = t.budget_id
+                GROUP BY b.budget_line
+                ORDER BY b.budget_line
+            """
+            df_phase_spent = pd.read_sql(q_phase_spent, conn)
 
-        df["Total Price"] = df["quantity"] * df["cost_per_unit"]
+            df_cards = pd.merge(df_phase_budget, df_phase_spent, on="phase", how="left").fillna({"spent_total": 0})
+            df_cards["remaining_total"] = df_cards["budget_total"] - df_cards["spent_total"]
 
-        for dcol in ["datereceived", "expirationdate", "lastupdated"]:
-            if dcol in df.columns:
-                df[dcol] = pd.to_datetime(df[dcol], errors="coerce").dt.date
+            q_items = """
+                SELECT
+                    b.budget_id,
+                    b.budget_line AS phase,
+                    b.task,
+                    b.start_date,
+                    b.end_date,
+                    b.budget_usd,
+                    COALESCE(x.spent, 0) AS spent,
+                    (COALESCE(b.budget_usd,0) - COALESCE(x.spent,0)) AS remaining,
+                    b.justification
+                FROM budgets b
+                LEFT JOIN (
+                    SELECT budget_id, SUM(amount_usd) AS spent
+                    FROM transactions
+                    GROUP BY budget_id
+                ) x ON x.budget_id = b.budget_id
+                ORDER BY b.budget_line, b.budget_id
+            """
+            df_items = pd.read_sql(q_items, conn)
 
-        self.inventory_df = df
+            if df_cards.empty:
+                st.info("No budgets found yet.")
+            else:
+                for _, row in df_cards.iterrows():
+                    phase_name = row["phase"]
+                    budget_total = float(row["budget_total"])
+                    spent_total = float(row["spent_total"])
+                    remaining_total = float(row["remaining_total"])
 
-        supplier_df = pd.DataFrame(df["supplier"].dropna().unique(), columns=["supplier"])
-        supplier_df = supplier_df.sort_values("supplier").reset_index(drop=True)
-        self.supplier_df = supplier_df
+                    with st.container(border=True):
+                        st.markdown(f"### {phase_name}")
 
-        self._update_supplier_combo_and_table()
-        self.update_table()
-        self.update_supplier_table()
+                        m1, m2, m3 = st.columns(3)
+                        m1.metric("Budget", money(budget_total))
+                        m2.metric("Spent", money(spent_total))
+                        m3.metric("Remaining", money(remaining_total))
 
-    # -------- Table Updates --------
+                        items_this = df_items[df_items["phase"] == phase_name].copy()
+                        tasks_count = len(items_this)
+                        if not items_this.empty:
+                            start_min = items_this["start_date"].min()
+                            end_max = items_this["end_date"].max()
+                            st.caption(f"Tasks: **{tasks_count}**  |  Timeline: **{start_min} → {end_max}**")
+                        else:
+                            st.caption("Tasks: **0**")
 
-    def update_table(self):
-        df = self.inventory_df.copy()
-        if df.empty:
-            self.model.setDataFrame(pd.DataFrame([["No inventory found."]], columns=["Info"]))
-            self.total_label.setText("Total Inventory Value: 0")
-            return
+                        with st.expander("Details"):
+                            if items_this.empty:
+                                st.write("No items in this phase yet.")
+                            else:
+                                view = items_this[[
+                                    "task", "start_date", "end_date", "budget_usd", "spent", "remaining", "justification"
+                                ]].copy()
+                                for col in ["budget_usd", "spent", "remaining"]:
+                                    view[col] = view[col].apply(money)
+                                st.dataframe(view, use_container_width=True, height=260)
 
-        # Date filter
-        if self.all_date_filter_checkbox.isChecked():
-            from_dt = self.all_from_date.date()
-            to_dt = self.all_to_date.date()
-            use_from = from_dt.isValid()
-            use_to = to_dt.isValid()
-            if use_from and use_to:
-                df = df[(df["datereceived"] >= from_dt.toPyDate()) & (df["datereceived"] <= to_dt.toPyDate())]
-            elif use_from:
-                df = df[df["datereceived"] >= from_dt.toPyDate()]
-            elif use_to:
-                df = df[df["datereceived"] <= to_dt.toPyDate()]
+                st.divider()
+                total_budget = float(df_cards["budget_total"].sum())
+                total_spent = float(df_cards["spent_total"].sum())
+                total_remaining = total_budget - total_spent
+                g1, g2, g3 = st.columns(3)
+                g1.metric("Total Budget (All Phases)", money(total_budget))
+                g2.metric("Total Spending (All Phases)", money(total_spent))
+                g3.metric("Total Remaining (All Phases)", money(total_remaining))
 
-        if self.sort_checkbox.isChecked():
-            df = df.sort_values("Total Price", ascending=False)
-        else:
-            df = df.sort_values("batchid")
+        except Error as e:
+            st.error(f"Database error (Budgets tab): {e}")
 
-        cols = list(df.columns)
-        if "supplier" in cols:
-            cols.remove("supplier")
-            cols.insert(2, "supplier")
+    # ======================================================
+    # 📜 Transactions tab — filterable list
+    # ======================================================
+    with tab_transactions:
+        st.subheader("Transactions")
 
-        df = df[cols]
-        self.model.setDataFrame(df)
-        self.table.resizeColumnsToContents()
-        total_sum = df["Total Price"].sum() if "Total Price" in df.columns else 0
-        self.total_label.setText(
-            f"💰 Total Inventory Value: <span style='color:#059669'>{total_sum:,.2f}</span>"
-        )
+        try:
+            budget_lookup = pd.read_sql("SELECT budget_id, budget_line, task FROM budgets ORDER BY budget_line, budget_id ASC", conn)
+            options = ["(All)"] + budget_lookup["budget_line"].tolist()
+            sel_budget_name = st.selectbox("Filter by Budget Line", options, index=0)
 
-    def update_supplier_table(self):
-        supplier = self.supplier_combo.currentData()
-        df = self.inventory_df.copy()
+            c1, c2 = st.columns(2)
+            with c1:
+                start_date = st.date_input("Start date", value=date(2025, 1, 1))
+            with c2:
+                end_date = st.date_input("End date", value=date.today())
 
-        if self.supplier_date_filter_checkbox.isChecked():
-            from_dt = self.from_date.date()
-            to_dt = self.to_date.date()
-            use_from = from_dt.isValid()
-            use_to = to_dt.isValid()
-            if use_from and use_to:
-                df = df[(df["datereceived"] >= from_dt.toPyDate()) & (df["datereceived"] <= to_dt.toPyDate())]
-            elif use_from:
-                df = df[df["datereceived"] >= from_dt.toPyDate()]
-            elif use_to:
-                df = df[df["datereceived"] <= to_dt.toPyDate()]
+            base_q = """
+                SELECT
+                    t.transaction_id,
+                    t.budget_id,
+                    b.budget_line,
+                    t.transaction_date,
+                    t.description,
+                    t.amount_usd,
+                    t.notes
+                FROM transactions t
+                JOIN budgets b ON b.budget_id = t.budget_id
+                WHERE t.transaction_date BETWEEN %s AND %s
+            """
+            params = [start_date, end_date]
+            if sel_budget_name != "(All)":
+                base_q += " AND b.budget_line = %s"
+                params.append(sel_budget_name)
+            base_q += " ORDER BY t.transaction_date ASC, t.transaction_id ASC"
 
-        if supplier:
-            df = df[df["supplier"] == supplier]
+            df_tx = pd.read_sql(base_q, conn, params=params)
 
-        if df.empty:
-            info_text = "Select a supplier to view details." if not supplier else "No inventory for this supplier/dates."
-            self.supplier_model.setDataFrame(pd.DataFrame([[info_text]], columns=["Info"]))
-            self.supplier_total_label.setText("")
-            return
+            tx_total = float(df_tx["amount_usd"].sum()) if not df_tx.empty else 0.0
+            st.metric("Total in view", money(tx_total))
 
-        cols = list(df.columns)
-        if "supplier" in cols:
-            cols.remove("supplier")
-            cols.insert(2, "supplier")
+            show_tx = df_tx.copy()
+            if not show_tx.empty:
+                show_tx["amount_usd"] = show_tx["amount_usd"].apply(money)
 
-        df = df[cols]
-        self.supplier_model.setDataFrame(df)
-        self.supplier_table.resizeColumnsToContents()
-        total_sum = df["Total Price"].sum() if "Total Price" in df.columns else 0
-        self.supplier_total_label.setText(
-            f"Supplier Inventory Value: <span style='color:#059669'>{total_sum:,.2f}</span>"
-        )
+            st.dataframe(
+                show_tx[[
+                    "transaction_id", "budget_line", "transaction_date", "description", "amount_usd", "notes"
+                ]] if not show_tx.empty else show_tx,
+                use_container_width=True
+            )
 
-    def _on_supplier_search_changed(self, text):
-        text = text.strip().lower()
-        if text:
-            matches = self.supplier_df[self.supplier_df["supplier"].str.lower().str.contains(text)]
-        else:
-            matches = self.supplier_df
-        self._update_supplier_combo_and_table(matches)
+            st.download_button(
+                "⬇️ Download Transactions CSV",
+                data=df_tx.to_csv(index=False).encode("utf-8"),
+                file_name="transactions_view.csv",
+                mime="text/csv"
+            )
 
-    def _update_supplier_combo_and_table(self, matches_df=None):
-        if matches_df is None:
-            matches_df = self.supplier_df
+        except Error as e:
+            st.error(f"Database error (Transactions tab): {e}")
 
-        self.supplier_combo.blockSignals(True)
-        self.supplier_combo.clear()
-        self.supplier_combo.addItem("Select supplier...", None)
-        for sup in matches_df["supplier"]:
-            self.supplier_combo.addItem(sup, sup)
-        self.supplier_combo.blockSignals(False)
+    # ======================================================
+    # 📈 Phase Summary tab — totals row included
+    # ======================================================
+    with tab_summary:
+        st.subheader("Phase Summary (Budget vs. Spent vs. Remain)")
 
-        if len(matches_df) > 0:
-            self.supplier_combo.setCurrentIndex(1)
-        else:
-            self.supplier_combo.setCurrentIndex(0)
-        self.update_supplier_table()
+        try:
+            phase_budget_q = """
+                SELECT
+                    b.budget_line AS phase,
+                    COALESCE(SUM(b.budget_usd), 0) AS budget_total
+                FROM budgets b
+                GROUP BY b.budget_line
+                ORDER BY b.budget_line
+            """
+            df_budget = pd.read_sql(phase_budget_q, conn)
 
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    w = InventoryTab()
-    w.resize(1300, 650)
-    w.show()
-    sys.exit(app.exec_())
+            phase_spend_q = """
+                SELECT
+                    b.budget_line AS phase,
+                    COALESCE(SUM(t.amount_usd), 0) AS spent_total
+                FROM transactions t
+                JOIN budgets b ON b.budget_id = t.budget_id
+                GROUP BY b.budget_line
+                ORDER BY b.budget_line
+            """
+            df_spend = pd.read_sql(phase_spend_q, conn)
+
+            df_phase = pd.merge(df_budget, df_spend, on="phase", how="left").fillna({"spent_total": 0})
+            df_phase["remain"] = df_phase["budget_total"] - df_phase["spent_total"]
+
+            total_row = pd.DataFrame([{
+                "phase": "Total",
+                "budget_total": df_phase["budget_total"].sum(),
+                "spent_total": df_phase["spent_total"].sum(),
+                "remain": (df_phase["budget_total"].sum() - df_phase["spent_total"].sum())
+            }])
+            df_out = pd.concat([df_phase, total_row], ignore_index=True)
+
+            show = df_out.rename(columns={
+                "phase": "Phases",
+                "budget_total": "Budget",
+                "spent_total": "USD Amount",
+                "remain": "Remain"
+            }).copy()
+            for col in ["Budget", "USD Amount", "Remain"]:
+                show[col] = show[col].apply(money)
+
+            st.dataframe(show, use_container_width=True)
+
+            st.download_button(
+                "⬇️ Download Phase Summary CSV",
+                data=df_out.to_csv(index=False).encode("utf-8"),
+                file_name="phase_summary.csv",
+                mime="text/csv"
+            )
+
+        except Error as e:
+            st.error(f"Database error (Summary tab): {e}")
+
+    # ======================================================
+    # ➕ New Transaction tab — checkbox table + form
+    # ======================================================
+    with tab_entry:
+        st.subheader("Add New Transaction")
+
+        try:
+            # Build a table of available budgets with aggregated 'spent'
+            q_budget_table = """
+                SELECT
+                    b.budget_id,
+                    b.budget_line,
+                    b.task,
+                    COALESCE(b.budget_usd, 0) AS budget_usd,
+                    COALESCE(x.spent, 0) AS spent
+                FROM budgets b
+                LEFT JOIN (
+                    SELECT budget_id, SUM(amount_usd) AS spent
+                    FROM transactions
+                    GROUP BY budget_id
+                ) x ON x.budget_id = b.budget_id
+                ORDER BY b.budget_line, b.budget_id
+            """
+            df_budgets = pd.read_sql(q_budget_table, conn)
+
+            if df_budgets.empty:
+                st.info("No budgets available. Please add budgets first.")
+            else:
+                # Add a checkbox column for selection
+                df_budgets["Select"] = False
+                # Pretty display copy
+                show = df_budgets.copy()
+                show["Budget (USD)"] = show["budget_usd"].apply(money)
+                show["Spent"] = show["spent"].apply(money)
+
+                # Reorder for user view
+                show = show[["Select", "budget_id", "budget_line", "task", "Budget (USD)", "Spent"]]
+
+                st.caption("Select ONE budget (phase/task) to attach your transaction to:")
+                edited = st.data_editor(
+                    show,
+                    use_container_width=True,
+                    num_rows="dynamic",
+                    hide_index=True,
+                    column_config={
+                        "Select": st.column_config.CheckboxColumn(default=False, help="Tick to select this budget"),
+                        "budget_id": st.column_config.NumberColumn("Budget ID", disabled=True),
+                        "budget_line": st.column_config.TextColumn("Phase", disabled=True),
+                        "task": st.column_config.TextColumn("Task", disabled=True),
+                        "Budget (USD)": st.column_config.TextColumn(disabled=True),
+                        "Spent": st.column_config.TextColumn(disabled=True),
+                    }
+                )
+
+                # Determine selected budget_id(s)
+                selected_rows = edited[edited["Select"] == True]
+                selected_count = len(selected_rows)
+                selected_budget_id = int(selected_rows["budget_id"].iloc[0]) if selected_count == 1 else None
+
+                if selected_count == 0:
+                    st.info("No budget selected yet.")
+                elif selected_count > 1:
+                    st.warning("Please select **only one** budget to proceed.")
+                else:
+                    st.success(f"Selected Budget ID: {selected_budget_id}")
+
+                st.markdown("---")
+
+                # Entry form
+                c1, c2 = st.columns(2)
+                with c1:
+                    tx_date = st.date_input("Transaction date", value=date.today())
+                    amount = st.number_input("Amount (USD)", min_value=0.00, step=0.01, format="%.2f")
+                with c2:
+                    description = st.text_input("Description", value="", placeholder="e.g., Food & transport")
+                    notes = st.text_input("Notes (optional)", value="", placeholder="Method: Cash; IQD: 1,000,000")
+
+                if st.button("Save Transaction", type="primary"):
+                    if selected_count != 1:
+                        st.error("Please select exactly one budget in the table above.")
+                    elif amount <= 0:
+                        st.error("Amount must be greater than 0.")
+                    else:
+                        try:
+                            cur = conn.cursor()
+                            cur.execute(
+                                """
+                                INSERT INTO transactions
+                                (budget_id, transaction_date, description, amount_usd, notes)
+                                VALUES (%s, %s, %s, %s, %s)
+                                """,
+                                (selected_budget_id, tx_date, description or None, amount, notes or None)
+                            )
+                            st.success("Transaction saved ✅")
+                        except Error as e:
+                            st.error(f"Insert failed: {e}")
+                        finally:
+                            try:
+                                cur.close()
+                            except:
+                                pass
+
+                with st.expander("Recent Transactions"):
+                    preview_q = """
+                        SELECT t.transaction_id, b.budget_line, t.transaction_date, t.description, t.amount_usd, t.notes
+                        FROM transactions t
+                        JOIN budgets b ON b.budget_id = t.budget_id
+                        ORDER BY t.transaction_id DESC
+                        LIMIT 20
+                    """
+                    df_recent = pd.read_sql(preview_q, conn)
+                    if not df_recent.empty:
+                        show_recent = df_recent.copy()
+                        show_recent["amount_usd"] = show_recent["amount_usd"].apply(money)
+                        st.dataframe(show_recent, use_container_width=True)
+                    else:
+                        st.caption("No transactions yet.")
+
+        except Error as e:
+            st.error(f"Database error (New Transaction tab): {e}")
+
+    try:
+        conn.close()
+    except:
+        pass
