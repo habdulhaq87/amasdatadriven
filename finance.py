@@ -23,32 +23,15 @@ conn = mysql.connector.connect(
     autocommit=True,
 )
 
-tab_budgets, tab_transactions, tab_summary = st.tabs(
-    ["📊 Budgets", "📜 Transactions", "📈 Phase Summary"]
+tab_budgets, tab_transactions, tab_summary, tab_entry = st.tabs(
+    ["📊 Budgets", "📜 Transactions", "📈 Phase Summary", "➕ New Transaction"]
 )
 
-# -----------------------
-# Helpers
-# -----------------------
-def fmt_money(val):
-    """Format a number as $X,XXX.XX. Pass through strings like 'XXXX' safely."""
+def money(x):
     try:
-        # Handle Decimals/ints/floats
-        if pd.isna(val):
-            return "$—"
-        return f"${float(val):,.2f}"
+        return f"${float(x):,.2f}"
     except Exception:
-        # If it's a string like 'XXXX', just return it
-        s = "" if val is None else str(val)
-        return s
-
-def cast_cols_to_str(df: pd.DataFrame, cols):
-    """Force specific columns to string (prevents Arrow dtype inference errors)."""
-    df = df.copy()
-    for c in cols:
-        if c in df.columns:
-            df[c] = df[c].astype(str)
-    return df
+        return x
 
 # ======================================================
 # 📊 Budgets tab — VERTICAL PHASE CARDS (one per row)
@@ -79,12 +62,7 @@ with tab_budgets:
         """
         df_phase_spent = pd.read_sql(q_phase_spent, conn)
 
-        # Merge totals; if any text slipped into numeric columns upstream, coerce to numeric
-        for d in (df_phase_budget, df_phase_spent):
-            for c in d.columns:
-                if c not in ("phase",):
-                    d[c] = pd.to_numeric(d[c], errors="coerce")
-
+        # Merge totals
         df_cards = pd.merge(df_phase_budget, df_phase_spent, on="phase", how="left").fillna({"spent_total": 0})
         df_cards["remaining_total"] = df_cards["budget_total"] - df_cards["spent_total"]
 
@@ -110,29 +88,24 @@ with tab_budgets:
         """
         df_items = pd.read_sql(q_items, conn)
 
-        # Coerce numeric columns safely in item details
-        for c in ("budget_usd", "spent", "remaining"):
-            if c in df_items.columns:
-                df_items[c] = pd.to_numeric(df_items[c], errors="coerce")
-
         if df_cards.empty:
             st.info("No budgets found yet.")
         else:
             # One full-width card per phase (VERTICAL STACK)
             for _, row in df_cards.iterrows():
                 phase_name = row["phase"]
-                budget_total = row["budget_total"]
-                spent_total = row["spent_total"]
-                remaining_total = row["remaining_total"]
+                budget_total = float(row["budget_total"])
+                spent_total = float(row["spent_total"])
+                remaining_total = float(row["remaining_total"])
 
                 with st.container(border=True):
                     st.markdown(f"### {phase_name}")
 
-                    # Metrics in one line (render as formatted strings)
+                    # Metrics in one line
                     m1, m2, m3 = st.columns(3)
-                    m1.metric("Budget", fmt_money(budget_total))
-                    m2.metric("Spent", fmt_money(spent_total))
-                    m3.metric("Remaining", fmt_money(remaining_total))
+                    m1.metric("Budget", money(budget_total))
+                    m2.metric("Spent", money(spent_total))
+                    m3.metric("Remaining", money(remaining_total))
 
                     # Quick info
                     items_this = df_items[df_items["phase"] == phase_name].copy()
@@ -152,22 +125,19 @@ with tab_budgets:
                             view = items_this[[
                                 "task", "start_date", "end_date", "budget_usd", "spent", "remaining", "justification"
                             ]].copy()
-                            # Format money columns as strings
                             for col in ["budget_usd", "spent", "remaining"]:
-                                view[col] = view[col].apply(fmt_money)
-                            # Ensure Arrow doesn't try to coerce to numeric
-                            view = cast_cols_to_str(view, ["budget_usd", "spent", "remaining"])
+                                view[col] = view[col].apply(money)
                             st.dataframe(view, use_container_width=True, height=260)
 
             # Global summary at the bottom
             st.divider()
-            total_budget = pd.to_numeric(df_cards["budget_total"], errors="coerce").sum()
-            total_spent = pd.to_numeric(df_cards["spent_total"], errors="coerce").sum()
+            total_budget = float(df_cards["budget_total"].sum())
+            total_spent = float(df_cards["spent_total"].sum())
             total_remaining = total_budget - total_spent
             g1, g2, g3 = st.columns(3)
-            g1.metric("Total Budget (All Phases)", fmt_money(total_budget))
-            g2.metric("Total Spending (All Phases)", fmt_money(total_spent))
-            g3.metric("Total Remaining (All Phases)", fmt_money(total_remaining))
+            g1.metric("Total Budget (All Phases)", money(total_budget))
+            g2.metric("Total Spending (All Phases)", money(total_spent))
+            g3.metric("Total Remaining (All Phases)", money(total_remaining))
 
     except Error as e:
         st.error(f"Database error (Budgets tab): {e}")
@@ -180,9 +150,7 @@ with tab_transactions:
 
     try:
         # Budget dropdown
-        budget_lookup = pd.read_sql(
-            "SELECT budget_id, budget_line FROM budgets ORDER BY budget_line ASC", conn
-        )
+        budget_lookup = pd.read_sql("SELECT budget_id, budget_line, task FROM budgets ORDER BY budget_line, budget_id ASC", conn)
         options = ["(All)"] + budget_lookup["budget_line"].tolist()
         sel_budget_name = st.selectbox("Filter by Budget Line", options, index=0)
 
@@ -214,17 +182,12 @@ with tab_transactions:
 
         df_tx = pd.read_sql(base_q, conn, params=params)
 
-        # Coerce numeric (in case)
-        if "amount_usd" in df_tx.columns:
-            df_tx["amount_usd"] = pd.to_numeric(df_tx["amount_usd"], errors="coerce")
-
         tx_total = float(df_tx["amount_usd"].sum()) if not df_tx.empty else 0.0
-        st.metric("Total in view", fmt_money(tx_total))
+        st.metric("Total in view", money(tx_total))
 
         show_tx = df_tx.copy()
         if not show_tx.empty:
-            show_tx["amount_usd"] = show_tx["amount_usd"].apply(fmt_money)
-            show_tx = cast_cols_to_str(show_tx, ["amount_usd"])
+            show_tx["amount_usd"] = show_tx["amount_usd"].apply(money)
 
         st.dataframe(
             show_tx[[
@@ -271,12 +234,6 @@ with tab_summary:
         """
         df_spend = pd.read_sql(phase_spend_q, conn)
 
-        # Coerce numerics to avoid stray strings
-        for d in (df_budget, df_spend):
-            for c in d.columns:
-                if c not in ("phase",):
-                    d[c] = pd.to_numeric(d[c], errors="coerce")
-
         df_phase = pd.merge(df_budget, df_spend, on="phase", how="left").fillna({"spent_total": 0})
         df_phase["remain"] = df_phase["budget_total"] - df_phase["spent_total"]
 
@@ -289,16 +246,13 @@ with tab_summary:
         df_out = pd.concat([df_phase, total_row], ignore_index=True)
 
         show = df_out.rename(columns={
-            "phase": "Budget Line / Phase",
+            "phase": "Phases",
             "budget_total": "Budget",
             "spent_total": "USD Amount",
             "remain": "Remain"
         }).copy()
-
-        # Format money columns and force them to string for display (Arrow-safe)
         for col in ["Budget", "USD Amount", "Remain"]:
-            show[col] = show[col].apply(fmt_money)
-        show = cast_cols_to_str(show, ["Budget", "USD Amount", "Remain"])
+            show[col] = show[col].apply(money)
 
         st.dataframe(show, use_container_width=True)
 
@@ -311,6 +265,83 @@ with tab_summary:
 
     except Error as e:
         st.error(f"Database error (Summary tab): {e}")
+
+# ======================================================
+# ➕ New Transaction tab — manual data entry
+# ======================================================
+with tab_entry:
+    st.subheader("Add New Transaction")
+
+    try:
+        # Load budgets for selection (use label with id + budget_line + task for clarity)
+        df_b = pd.read_sql(
+            "SELECT budget_id, budget_line, task FROM budgets ORDER BY budget_line, budget_id ASC",
+            conn
+        )
+        if df_b.empty:
+            st.info("No budgets available. Please add budgets first.")
+        else:
+            df_b["label"] = df_b.apply(
+                lambda r: f"[{int(r['budget_id'])}] {r['budget_line']} — {r['task']}",
+                axis=1
+            )
+            label_to_id = dict(zip(df_b["label"], df_b["budget_id"]))
+            sel_label = st.selectbox("Budget (phase / task)", df_b["label"].tolist())
+
+            c1, c2 = st.columns(2)
+            with c1:
+                tx_date = st.date_input("Transaction date", value=date.today())
+                amount = st.number_input("Amount (USD)", min_value=0.00, step=0.01, format="%.2f")
+            with c2:
+                description = st.text_input("Description", value="", placeholder="e.g., Food & transport")
+                notes = st.text_input("Notes (optional)", value="", placeholder="Method: Cash; IQD: 1,000,000")
+
+            if st.button("Save Transaction", type="primary"):
+                # Basic validation
+                if sel_label is None or sel_label not in label_to_id:
+                    st.error("Please choose a valid Budget.")
+                elif amount <= 0:
+                    st.error("Amount must be greater than 0.")
+                else:
+                    try:
+                        budget_id = int(label_to_id[sel_label])
+                        cur = conn.cursor()
+                        cur.execute(
+                            """
+                            INSERT INTO transactions
+                            (budget_id, transaction_date, description, amount_usd, notes)
+                            VALUES (%s, %s, %s, %s, %s)
+                            """,
+                            (budget_id, tx_date, description or None, amount, notes or None)
+                        )
+                        st.success("Transaction saved ✅")
+                    except Error as e:
+                        st.error(f"Insert failed: {e}")
+                    finally:
+                        try:
+                            cur.close()
+                        except:
+                            pass
+
+            # Optional: recent transactions preview
+            with st.expander("Recent Transactions"):
+                preview_q = """
+                    SELECT t.transaction_id, b.budget_line, t.transaction_date, t.description, t.amount_usd, t.notes
+                    FROM transactions t
+                    JOIN budgets b ON b.budget_id = t.budget_id
+                    ORDER BY t.transaction_id DESC
+                    LIMIT 20
+                """
+                df_recent = pd.read_sql(preview_q, conn)
+                if not df_recent.empty:
+                    show_recent = df_recent.copy()
+                    show_recent["amount_usd"] = show_recent["amount_usd"].apply(money)
+                    st.dataframe(show_recent, use_container_width=True)
+                else:
+                    st.caption("No transactions yet.")
+
+    except Error as e:
+        st.error(f"Database error (New Transaction tab): {e}")
 
 # ---------------------------------------
 # Close connection
