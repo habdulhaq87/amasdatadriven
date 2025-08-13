@@ -1,10 +1,10 @@
 import streamlit as st
-import home
-import current
 import vision
+import current
+import home
 import phase1
 import phase2
-import finance  # make sure finance.py is alongside this file
+import finance  # must have render_finance()
 
 def main():
     st.set_page_config(page_title="Amas Data-Driven Strategy", layout="wide")
@@ -29,19 +29,19 @@ def main():
     st.sidebar.title("Navigation")
     st.sidebar.markdown("### AMAS's Data-Driven Strategy for 2025")
 
-    pages = [
-        "Home",
-        "Current Stage",
-        "Vision",
-        "Phase 1",
-        "Phase 2",
-        "Finance",
-    ]
+    pages = {
+        "Home": "Home",
+        "Current Stage": "Current Stage",
+        "Vision": "Vision",
+        "Phase 1": "Phase 1",
+        "Phase 2": "Phase 2",
+        "Finance": "Finance",
+    }
 
-    # keep selection stable across reruns
-    default_index = pages.index(st.session_state.get("active_page", "Home"))
-    active_page = st.sidebar.radio("Go to", pages, index=default_index, label_visibility="collapsed")
-    st.session_state.active_page = active_page
+    active_page = "Home"
+    for page_name in pages.keys():
+        if st.sidebar.button(page_name):
+            active_page = page_name
 
     # --- Main Content ---
     if active_page == "Home":
@@ -55,12 +55,8 @@ def main():
     elif active_page == "Phase 2":
         phase2.render_phase2()
     elif active_page == "Finance":
-        # Prefer a function if provided
-        if hasattr(finance, "render_finance") and callable(finance.render_finance):
-            finance.render_finance()
-        else:
-            # If finance.py renders at import-time, just show a tiny note
-            st.caption("Finance module loaded. If nothing appears, add a `render_finance()` function in finance.py.")
+        # Call the finance page renderer
+        finance.render_finance()
 
 if __name__ == "__main__":
     main()
