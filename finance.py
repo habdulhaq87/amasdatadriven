@@ -20,8 +20,8 @@ def render_finance():
         autocommit=True,
     )
 
-    tab_budgets, tab_transactions, tab_summary, tab_entry = st.tabs(
-        ["📊 Budgets", "📜 Transactions", "📈 Phase Summary", "➕ New Transaction"]
+    tab_budgets, tab_transactions, tab_summary, tab_entry, tab_edit = st.tabs(
+        ["📊 Budgets", "📜 Transactions", "📈 Phase Summary", "➕ New Transaction", "📝 Edit Budgets"]
     )
 
     def money(x):
@@ -31,7 +31,7 @@ def render_finance():
             return x
 
     # ======================================================
-    # 📊 Budgets tab — Vertical phase cards
+    # 📊 Budgets tab — VERTICAL PHASE CARDS (one per row)
     # ======================================================
     with tab_budgets:
         st.subheader("Budgets by Phase")
@@ -260,7 +260,6 @@ def render_finance():
         st.subheader("Add New Transaction")
 
         try:
-            # Build a table of available budgets with aggregated 'spent'
             q_budget_table = """
                 SELECT
                     b.budget_id,
@@ -281,21 +280,16 @@ def render_finance():
             if df_budgets.empty:
                 st.info("No budgets available. Please add budgets first.")
             else:
-                # Add a checkbox column for selection
                 df_budgets["Select"] = False
-                # Pretty display copy
                 show = df_budgets.copy()
                 show["Budget (USD)"] = show["budget_usd"].apply(money)
                 show["Spent"] = show["spent"].apply(money)
-
-                # Reorder for user view
                 show = show[["Select", "budget_id", "budget_line", "task", "Budget (USD)", "Spent"]]
 
-                st.caption("Select ONE budget (phase/task) to attach your transaction to:")
+                st.caption("Select ONE budget (phase/task):")
                 edited = st.data_editor(
                     show,
                     use_container_width=True,
-                    num_rows="dynamic",
                     hide_index=True,
                     column_config={
                         "Select": st.column_config.CheckboxColumn(default=False, help="Tick to select this budget"),
@@ -307,7 +301,6 @@ def render_finance():
                     }
                 )
 
-                # Determine selected budget_id(s)
                 selected_rows = edited[edited["Select"] == True]
                 selected_count = len(selected_rows)
                 selected_budget_id = int(selected_rows["budget_id"].iloc[0]) if selected_count == 1 else None
@@ -321,7 +314,6 @@ def render_finance():
 
                 st.markdown("---")
 
-                # Entry form
                 c1, c2 = st.columns(2)
                 with c1:
                     tx_date = st.date_input("Transaction date", value=date.today())
@@ -374,6 +366,116 @@ def render_finance():
         except Error as e:
             st.error(f"Database error (New Transaction tab): {e}")
 
+    # ======================================================
+    # 📝 Edit Budgets tab — inline cell editing & SAVE
+    # ======================================================
+    with tab_edit:
+        st.subheader("Edit Budgets (inline)")
+
+        try:
+            # Load current budgets
+            src = pd.read_sql(
+                """
+                SELECT
+                    budget_id,
+                    budget_line,
+                    task,
+                    sub_tasks,
+                    start_date,
+                    end_date,
+                    budget_usd,
+                    justification
+                FROM budgets
+                ORDER BY budget_id ASC
+                """,
+                conn
+            )
+
+            st.caption("Edit any field below (except **budget_id**). Then click **Save Changes**.")
+            edited = st.data_editor(
+                src,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "budget_id": st.column_config.NumberColumn("budget_id", disabled=True, help="Primary key"),
+                    "budget_line": st.column_config.TextColumn("budget_line"),
+                    "task": st.column_config.TextColumn("task"),
+                    "sub_tasks": st.column_config.TextColumn("sub_tasks", help="Optional"),
+                    "start_date": st.column_config.DateColumn("start_date", help="YYYY-MM-DD"),
+                    "end_date": st.column_config.DateColumn("end_date", help="YYYY-MM-DD"),
+                    "budget_usd": st.column_config.NumberColumn("budget_usd", step=0.01, format="%.2f"),
+                    "justification": st.column_config.TextColumn("justification", help="Optional"),
+                }
+            )
+
+            def _norm(v):
+                """Normalize empty strings/NaN to None for DB, cast types."""
+                if pd.isna(v) or (isinstance(v, str) and v.strip() == ""):
+                    return None
+                return v
+
+            if st.button("Save Changes", type="primary"):
+                try:
+                    updates = []
+                    for i in range(len(edited)):
+                        row_new = edited.iloc[i]
+                        row_old = src.iloc[i]
+
+                        # Check if anything changed (excluding None vs "" noise)
+                        changed = False
+                        for col in ["budget_line", "task", "sub_tasks", "start_date", "end_date", "budget_usd", "justification"]:
+                            v_new = _norm(row_new[col])
+                            v_old = _norm(row_old[col])
+                            if str(v_new) != str(v_old):
+                                changed = True
+                                break
+
+                        if not changed:
+                            continue
+
+                        updates.append((
+                            _norm(row_new["budget_line"]),
+                            _norm(row_new["task"]),
+                            _norm(row_new["sub_tasks"]),
+                            _norm(row_new["start_date"]),
+                            _norm(row_new["end_date"]),
+                            float(row_new["budget_usd"]) if not pd.isna(row_new["budget_usd"]) else None,
+                            _norm(row_new["justification"]),
+                            int(row_new["budget_id"])
+                        ))
+
+                    if not updates:
+                        st.info("No changes detected.")
+                    else:
+                        cur = conn.cursor()
+                        cur.executemany(
+                            """
+                            UPDATE budgets
+                            SET budget_line=%s,
+                                task=%s,
+                                sub_tasks=%s,
+                                start_date=%s,
+                                end_date=%s,
+                                budget_usd=%s,
+                                justification=%s
+                            WHERE budget_id=%s
+                            """,
+                            updates
+                        )
+                        st.success(f"Saved changes for {cur.rowcount} row(s) ✅")
+                        try:
+                            cur.close()
+                        except:
+                            pass
+                except Error as e:
+                    st.error(f"Update failed: {e}")
+
+        except Error as e:
+            st.error(f"Database error (Edit Budgets): {e}")
+
+    # ---------------------------------------
+    # Close connection
+    # ---------------------------------------
     try:
         conn.close()
     except:
