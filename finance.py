@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import mysql.connector
 from mysql.connector import Error
-from datetime import date
+from datetime import date, datetime
 
 def render_finance():
     st.title("💼 Finance")
@@ -31,7 +31,7 @@ def render_finance():
             return x
 
     # ======================================================
-    # 📊 Budgets tab — VERTICAL PHASE CARDS (one per row)
+    # 📊 Budgets tab — VERTICAL PHASE CARDS
     # ======================================================
     with tab_budgets:
         st.subheader("Budgets by Phase")
@@ -367,31 +367,42 @@ def render_finance():
             st.error(f"Database error (New Transaction tab): {e}")
 
     # ======================================================
-    # 📝 Edit Budgets tab — inline cell editing & SAVE
+    # 📝 Edit Budgets tab — edit Budget & Spent
     # ======================================================
     with tab_edit:
-        st.subheader("Edit Budgets (inline)")
+        st.subheader("Edit Budgets (Budget & Spent)")
 
         try:
-            # Load current budgets
+            # Load budgets with current spent
             src = pd.read_sql(
                 """
                 SELECT
-                    budget_id,
-                    budget_line,
-                    task,
-                    sub_tasks,
-                    start_date,
-                    end_date,
-                    budget_usd,
-                    justification
-                FROM budgets
-                ORDER BY budget_id ASC
+                    b.budget_id,
+                    b.budget_line,
+                    b.task,
+                    b.sub_tasks,
+                    b.start_date,
+                    b.end_date,
+                    b.budget_usd,
+                    COALESCE(x.spent, 0) AS spent,
+                    b.justification
+                FROM budgets b
+                LEFT JOIN (
+                    SELECT budget_id, SUM(amount_usd) AS spent
+                    FROM transactions
+                    GROUP BY budget_id
+                ) x ON x.budget_id = b.budget_id
+                ORDER BY b.budget_id ASC
                 """,
                 conn
             )
 
-            st.caption("Edit any field below (except **budget_id**). Then click **Save Changes**.")
+            st.caption(
+                "Edit **budget_usd** directly. "
+                "Editing **spent** will create an automatic *Adjustment* transaction "
+                "for the difference (can be positive or negative)."
+            )
+
             edited = st.data_editor(
                 src,
                 use_container_width=True,
@@ -404,71 +415,73 @@ def render_finance():
                     "start_date": st.column_config.DateColumn("start_date", help="YYYY-MM-DD"),
                     "end_date": st.column_config.DateColumn("end_date", help="YYYY-MM-DD"),
                     "budget_usd": st.column_config.NumberColumn("budget_usd", step=0.01, format="%.2f"),
+                    "spent": st.column_config.NumberColumn("spent", step=0.01, format="%.2f"),
                     "justification": st.column_config.TextColumn("justification", help="Optional"),
                 }
             )
 
             def _norm(v):
-                """Normalize empty strings/NaN to None for DB, cast types."""
                 if pd.isna(v) or (isinstance(v, str) and v.strip() == ""):
                     return None
                 return v
 
             if st.button("Save Changes", type="primary"):
                 try:
-                    updates = []
+                    cur = conn.cursor()
+                    rows_updated = 0
+                    tx_inserted = 0
                     for i in range(len(edited)):
-                        row_new = edited.iloc[i]
-                        row_old = src.iloc[i]
+                        new = edited.iloc[i]
+                        old = src.iloc[i]
+                        bid = int(new["budget_id"])
 
-                        # Check if anything changed (excluding None vs "" noise)
-                        changed = False
+                        # --- Update budgets fields if changed ---
+                        fields_changed = []
+                        vals = []
                         for col in ["budget_line", "task", "sub_tasks", "start_date", "end_date", "budget_usd", "justification"]:
-                            v_new = _norm(row_new[col])
-                            v_old = _norm(row_old[col])
+                            v_new = _norm(new[col])
+                            v_old = _norm(old[col])
                             if str(v_new) != str(v_old):
-                                changed = True
-                                break
+                                fields_changed.append(col)
+                                if col == "budget_usd" and v_new is not None:
+                                    vals.append(float(v_new))
+                                else:
+                                    vals.append(v_new)
 
-                        if not changed:
-                            continue
+                        if fields_changed:
+                            set_clause = ", ".join([f"{c}=%s" for c in fields_changed])
+                            cur.execute(f"UPDATE budgets SET {set_clause} WHERE budget_id=%s", (*vals, bid))
+                            rows_updated += cur.rowcount
 
-                        updates.append((
-                            _norm(row_new["budget_line"]),
-                            _norm(row_new["task"]),
-                            _norm(row_new["sub_tasks"]),
-                            _norm(row_new["start_date"]),
-                            _norm(row_new["end_date"]),
-                            float(row_new["budget_usd"]) if not pd.isna(row_new["budget_usd"]) else None,
-                            _norm(row_new["justification"]),
-                            int(row_new["budget_id"])
-                        ))
+                        # --- Adjust 'spent' via transactions if changed ---
+                        current_spent = float(old["spent"]) if not pd.isna(old["spent"]) else 0.0
+                        desired_spent = float(new["spent"]) if not pd.isna(new["spent"]) else 0.0
+                        delta = round(desired_spent - current_spent, 2)
+                        if abs(delta) > 0.00001:  # need adjustment
+                            cur.execute(
+                                """
+                                INSERT INTO transactions
+                                (budget_id, transaction_date, description, amount_usd, notes)
+                                VALUES (%s, %s, %s, %s, %s)
+                                """,
+                                (
+                                    bid,
+                                    date.today(),
+                                    "Adjustment via Edit Budgets",
+                                    delta,  # may be positive or negative
+                                    f"Auto-adjust on {datetime.now().isoformat(timespec='seconds')}"
+                                )
+                            )
+                            tx_inserted += 1
 
-                    if not updates:
-                        st.info("No changes detected.")
-                    else:
-                        cur = conn.cursor()
-                        cur.executemany(
-                            """
-                            UPDATE budgets
-                            SET budget_line=%s,
-                                task=%s,
-                                sub_tasks=%s,
-                                start_date=%s,
-                                end_date=%s,
-                                budget_usd=%s,
-                                justification=%s
-                            WHERE budget_id=%s
-                            """,
-                            updates
-                        )
-                        st.success(f"Saved changes for {cur.rowcount} row(s) ✅")
-                        try:
-                            cur.close()
-                        except:
-                            pass
+                    st.success(f"Saved changes for {rows_updated} budget row(s), added {tx_inserted} adjustment transaction(s) ✅")
+                    try:
+                        cur.close()
+                    except:
+                        pass
+
                 except Error as e:
-                    st.error(f"Update failed: {e}")
+                    st.error(f"Save failed: {e}")
 
         except Error as e:
             st.error(f"Database error (Edit Budgets): {e}")
