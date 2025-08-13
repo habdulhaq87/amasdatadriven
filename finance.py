@@ -2,13 +2,14 @@ import streamlit as st
 import pandas as pd
 import mysql.connector
 from mysql.connector import Error
-from datetime import date
+from datetime import date, datetime
+from decimal import Decimal
 
 # ---------------------------------------
 # Page setup
 # ---------------------------------------
-st.set_page_config(page_title="Finance", layout="wide")
-st.title("💼 Finance")
+st.set_page_config(page_title="Transaction Entry", layout="wide")
+st.title("💸 Transaction Entry")
 
 # ---------------------------------------
 # DB connection (from st.secrets)
@@ -23,246 +24,226 @@ conn = mysql.connector.connect(
     autocommit=True,
 )
 
-tab_budgets, tab_transactions, tab_summary = st.tabs(["📊 Budgets", "📜 Transactions", "📈 Phase Summary"])
-
 def money(x):
     try:
         return f"${float(x):,.2f}"
     except Exception:
         return x
 
+# -----------------------------
+# Load budgets for dropdown
+# -----------------------------
+try:
+    budgets_df = pd.read_sql(
+        "SELECT budget_id, budget_line, task FROM budgets ORDER BY budget_line, budget_id",
+        conn
+    )
+except Error as e:
+    st.error(f"Failed to load budgets: {e}")
+    budgets_df = pd.DataFrame(columns=["budget_id", "budget_line", "task"])
+
+# Map for display
+if not budgets_df.empty:
+    budgets_df["display"] = budgets_df.apply(
+        lambda r: f"{r['budget_line']} — #{r['budget_id']}: {r['task'][:60]}",
+        axis=1
+    )
+else:
+    st.info("No budgets found. Please add budgets first.")
+    budgets_df["display"] = []
+
 # ======================================================
-# 📊 Budgets tab — VERTICAL PHASE CARDS (one per row)
+# Single-entry form
 # ======================================================
-with tab_budgets:
-    st.subheader("Budgets by Phase")
+st.subheader("Add a Single Transaction")
 
-    try:
-        # Phase-level totals
-        q_phase_budget = """
-            SELECT
-                b.budget_line AS phase,
-                COALESCE(SUM(b.budget_usd), 0) AS budget_total
-            FROM budgets b
-            GROUP BY b.budget_line
-            ORDER BY b.budget_line
-        """
-        df_phase_budget = pd.read_sql(q_phase_budget, conn)
+with st.form("tx_form", clear_on_submit=True):
+    colA, colB = st.columns([2, 1])
+    with colA:
+        sel = st.selectbox(
+            "Budget (Phase / Item)",
+            options=budgets_df["display"].tolist(),
+            index=0 if len(budgets_df) > 0 else None,
+            placeholder="Select a budget..."
+        )
+    with colB:
+        tx_date = st.date_input("Date", value=date.today(), format="YYYY-MM-DD")
 
-        q_phase_spent = """
-            SELECT
-                b.budget_line AS phase,
-                COALESCE(SUM(t.amount_usd), 0) AS spent_total
-            FROM transactions t
-            JOIN budgets b ON b.budget_id = t.budget_id
-            GROUP BY b.budget_line
-            ORDER BY b.budget_line
-        """
-        df_phase_spent = pd.read_sql(q_phase_spent, conn)
+    description = st.text_input("Description", placeholder="What is this transaction?")
+    amount = st.number_input("Amount (USD)", min_value=0.00, step=0.01, format="%.2f")
+    notes = st.text_area("Notes (optional)", placeholder="Method, Original IQD, or any comments")
 
-        # Merge totals
-        df_cards = pd.merge(df_phase_budget, df_phase_spent, on="phase", how="left").fillna({"spent_total": 0})
-        df_cards["remaining_total"] = df_cards["budget_total"] - df_cards["spent_total"]
+    submitted = st.form_submit_button("➕ Add Transaction", type="primary", use_container_width=True)
 
-        # Per-item details for each phase
-        q_items = """
-            SELECT
-                b.budget_id,
-                b.budget_line AS phase,
-                b.task,
-                b.start_date,
-                b.end_date,
-                b.budget_usd,
-                COALESCE(x.spent, 0) AS spent,
-                (COALESCE(b.budget_usd,0) - COALESCE(x.spent,0)) AS remaining,
-                b.justification
-            FROM budgets b
-            LEFT JOIN (
-                SELECT budget_id, SUM(amount_usd) AS spent
-                FROM transactions
-                GROUP BY budget_id
-            ) x ON x.budget_id = b.budget_id
-            ORDER BY b.budget_line, b.budget_id
-        """
-        df_items = pd.read_sql(q_items, conn)
-
-        if df_cards.empty:
-            st.info("No budgets found yet.")
+    if submitted:
+        if budgets_df.empty:
+            st.error("No budgets available.")
+        elif amount <= 0:
+            st.error("Amount must be greater than 0.")
         else:
-            # One full-width card per phase (VERTICAL STACK)
-            for _, row in df_cards.iterrows():
-                phase_name = row["phase"]
-                budget_total = float(row["budget_total"])
-                spent_total = float(row["spent_total"])
-                remaining_total = float(row["remaining_total"])
+            try:
+                # Resolve selected budget_id
+                row = budgets_df.loc[budgets_df["display"] == sel].iloc[0]
+                budget_id = int(row["budget_id"])
 
-                with st.container(border=True):
-                    st.markdown(f"### {phase_name}")
-
-                    # Metrics in one line
-                    m1, m2, m3 = st.columns(3)
-                    m1.metric("Budget", money(budget_total))
-                    m2.metric("Spent", money(spent_total))
-                    m3.metric("Remaining", money(remaining_total))
-
-                    # Quick info
-                    items_this = df_items[df_items["phase"] == phase_name].copy()
-                    tasks_count = len(items_this)
-                    if not items_this.empty:
-                        start_min = items_this["start_date"].min()
-                        end_max = items_this["end_date"].max()
-                        st.caption(f"Tasks: **{tasks_count}**  |  Timeline: **{start_min} → {end_max}**")
-                    else:
-                        st.caption("Tasks: **0**")
-
-                    # Expand for details
-                    with st.expander("Details"):
-                        if items_this.empty:
-                            st.write("No items in this phase yet.")
-                        else:
-                            view = items_this[[
-                                "task", "start_date", "end_date", "budget_usd", "spent", "remaining", "justification"
-                            ]].copy()
-                            for col in ["budget_usd", "spent", "remaining"]:
-                                view[col] = view[col].apply(money)
-                            st.dataframe(view, use_container_width=True, height=260)
-
-            # Global summary at the bottom
-            st.divider()
-            total_budget = float(df_cards["budget_total"].sum())
-            total_spent = float(df_cards["spent_total"].sum())
-            total_remaining = total_budget - total_spent
-            g1, g2, g3 = st.columns(3)
-            g1.metric("Total Budget (All Phases)", money(total_budget))
-            g2.metric("Total Spending (All Phases)", money(total_spent))
-            g3.metric("Total Remaining (All Phases)", money(total_remaining))
-
-    except Error as e:
-        st.error(f"Database error (Budgets tab): {e}")
+                sql = """
+                    INSERT INTO transactions
+                    (budget_id, transaction_date, description, amount_usd, notes)
+                    VALUES (%s, %s, %s, %s, %s)
+                """
+                params = [
+                    budget_id,
+                    tx_date,  # date object is OK for mysql-connector
+                    description if description.strip() else None,
+                    Decimal(f"{amount:.2f}"),
+                    notes if notes.strip() else None,
+                ]
+                cur = conn.cursor()
+                cur.execute(sql, params)
+                st.success(f"Saved ✅  (Budget #{budget_id} — {row['budget_line']})")
+                cur.close()
+            except Error as e:
+                st.error(f"Insert failed: {e}")
 
 # ======================================================
-# 📜 Transactions tab — filterable list
+# Optional: Quick CSV add (same schema or Budget name)
 # ======================================================
-with tab_transactions:
-    st.subheader("Transactions")
+with st.expander("📥 Bulk Add from CSV (Optional)"):
+    st.caption("Accepted headers (preferred): **budget_id, transaction_date (YYYY-MM-DD), description, amount_usd, notes**")
+    st.caption("Also supported: **Budget** (budget_line name) instead of budget_id.")
+    up = st.file_uploader("Upload CSV", type=["csv"])
+    if up is not None:
+        try:
+            df = pd.read_csv(up)
+        except Exception as e:
+            st.error(f"CSV read error: {e}")
+            df = pd.DataFrame()
 
-    try:
-        # Budget dropdown
-        budget_lookup = pd.read_sql("SELECT budget_id, budget_line FROM budgets ORDER BY budget_line ASC", conn)
-        options = ["(All)"] + budget_lookup["budget_line"].tolist()
-        sel_budget_name = st.selectbox("Filter by Budget Line", options, index=0)
+        # Normalize columns
+        cols = {c.lower().strip(): c for c in df.columns}
+        # If Budget name provided, map to budget_id
+        if "budget" in cols and "budget_id" not in cols:
+            # Build lookup map: budget_line lower -> budget_id(s)
+            phase_map = {}
+            for _, r in budgets_df.iterrows():
+                key = str(r["budget_line"]).strip().lower()
+                phase_map.setdefault(key, []).append(int(r["budget_id"]))
 
-        # Date range
-        c1, c2 = st.columns(2)
-        with c1:
-            start_date = st.date_input("Start date", value=date(2025, 1, 1))
-        with c2:
-            end_date = st.date_input("End date", value=date.today())
+            # Create budget_id by first matching id for given phase name
+            df["budget_id"] = df[cols["budget"]].apply(
+                lambda v: phase_map.get(str(v).strip().lower(), [None])[0]
+            )
 
-        base_q = """
-            SELECT
-                t.transaction_id,
-                t.budget_id,
-                b.budget_line,
-                t.transaction_date,
-                t.description,
-                t.amount_usd,
-                t.notes
-            FROM transactions t
-            JOIN budgets b ON b.budget_id = t.budget_id
-            WHERE t.transaction_date BETWEEN %s AND %s
-        """
-        params = [start_date, end_date]
-        if sel_budget_name != "(All)":
-            base_q += " AND b.budget_line = %s"
-            params.append(sel_budget_name)
-        base_q += " ORDER BY t.transaction_date ASC, t.transaction_id ASC"
+        # Coerce/rename to expected names
+        if "budget_id" not in df.columns and "budget_id" in cols:
+            df.rename(columns={cols["budget_id"]: "budget_id"}, inplace=True)
+        if "transaction_date" not in df.columns and "date" in cols:
+            df.rename(columns={cols["date"]: "transaction_date"}, inplace=True)
+        if "description" not in df.columns and "details" in cols:
+            df.rename(columns={cols["details"]: "description"}, inplace=True)
+        if "amount_usd" not in df.columns and "usd" in cols:
+            df.rename(columns={cols["usd"]: "amount_usd"}, inplace=True)
+        if "notes" not in df.columns and "method" in cols:
+            # Combine method + existing notes if any
+            method_col = cols["method"]
+            df["notes"] = df.get("notes", "").astype(str).str.strip()
+            df["notes"] = df.apply(
+                lambda r: (f"Method: {r[method_col]}" if pd.notna(r[method_col]) and str(r[method_col]).strip() else "")
+                if r.get("notes","") == "" else
+                (r["notes"] + ("; " if r["notes"] else "") + (f"Method: {r[method_col]}" if pd.notna(r[method_col]) and str(r[method_col]).strip() else "")),
+                axis=1
+            )
 
-        df_tx = pd.read_sql(base_q, conn, params=params)
+        # Clean types
+        def to_date(v):
+            try:
+                return pd.to_datetime(v).date()
+            except Exception:
+                return None
 
-        tx_total = float(df_tx["amount_usd"].sum()) if not df_tx.empty else 0.0
-        st.metric("Total in view", money(tx_total))
+        def to_decimal(v):
+            try:
+                return Decimal(str(v).replace(",", ""))
+            except Exception:
+                return None
 
-        show_tx = df_tx.copy()
-        if not show_tx.empty:
-            show_tx["amount_usd"] = show_tx["amount_usd"].apply(money)
+        df["budget_id"] = pd.to_numeric(df.get("budget_id"), errors="coerce").astype("Int64")
+        df["transaction_date"] = df.get("transaction_date", "").apply(to_date)
+        df["amount_usd"] = df.get("amount_usd", "").apply(to_decimal)
+        if "description" in df.columns:
+            df["description"] = df["description"].astype(str).str.strip()
+        if "notes" in df.columns:
+            df["notes"] = df["notes"].astype(str).str.strip()
 
-        st.dataframe(
-            show_tx[[
-                "transaction_id", "budget_line", "transaction_date", "description", "amount_usd", "notes"
-            ]] if not show_tx.empty else show_tx,
-            use_container_width=True
+        # Validate required
+        req_mask = (
+            df["budget_id"].notna() &
+            df["transaction_date"].notna() &
+            df["amount_usd"].notna()
         )
+        bad = df[~req_mask]
+        good = df[req_mask].copy()
 
-        st.download_button(
-            "⬇️ Download Transactions CSV",
-            data=df_tx.to_csv(index=False).encode("utf-8"),
-            file_name="transactions_view.csv",
-            mime="text/csv"
-        )
+        st.write("Preview:")
+        st.dataframe(df, use_container_width=True)
 
-    except Error as e:
-        st.error(f"Database error (Transactions tab): {e}")
+        if not bad.empty:
+            st.warning(f"{len(bad)} rows skipped (missing budget_id / date / amount).")
+            st.dataframe(bad, use_container_width=True)
+
+        if not good.empty and st.button("Insert CSV Transactions", use_container_width=True):
+            try:
+                cur = conn.cursor()
+                sql = """
+                    INSERT INTO transactions
+                    (budget_id, transaction_date, description, amount_usd, notes)
+                    VALUES (%s, %s, %s, %s, %s)
+                """
+                data = [
+                    (
+                        int(row["budget_id"]),
+                        row["transaction_date"],
+                        (row["description"] if pd.notna(row["description"]) and row["description"].strip() else None),
+                        row["amount_usd"],
+                        (row["notes"] if pd.notna(row["notes"]) and row["notes"].strip() else None),
+                    )
+                    for _, row in good.iterrows()
+                ]
+                cur.executemany(sql, data)
+                st.success(f"Inserted {cur.rowcount} transactions ✅")
+                cur.close()
+            except Error as e:
+                st.error(f"Bulk insert failed: {e}")
 
 # ======================================================
-# 📈 Phase Summary tab — totals row included
+# Recent transactions log
 # ======================================================
-with tab_summary:
-    st.subheader("Phase Summary (Budget vs. Spent vs. Remain)")
+st.divider()
+st.subheader("Recent Transactions")
 
-    try:
-        phase_budget_q = """
-            SELECT
-                b.budget_line AS phase,
-                COALESCE(SUM(b.budget_usd), 0) AS budget_total
-            FROM budgets b
-            GROUP BY b.budget_line
-            ORDER BY b.budget_line
-        """
-        df_budget = pd.read_sql(phase_budget_q, conn)
-
-        phase_spend_q = """
-            SELECT
-                b.budget_line AS phase,
-                COALESCE(SUM(t.amount_usd), 0) AS spent_total
-            FROM transactions t
-            JOIN budgets b ON b.budget_id = t.budget_id
-            GROUP BY b.budget_line
-            ORDER BY b.budget_line
-        """
-        df_spend = pd.read_sql(phase_spend_q, conn)
-
-        df_phase = pd.merge(df_budget, df_spend, on="phase", how="left").fillna({"spent_total": 0})
-        df_phase["remain"] = df_phase["budget_total"] - df_phase["spent_total"]
-
-        total_row = pd.DataFrame([{
-            "phase": "Total",
-            "budget_total": df_phase["budget_total"].sum(),
-            "spent_total": df_phase["spent_total"].sum(),
-            "remain": (df_phase["budget_total"].sum() - df_phase["spent_total"].sum())
-        }])
-        df_out = pd.concat([df_phase, total_row], ignore_index=True)
-
-        show = df_out.rename(columns={
-            "phase": "Phases",
-            "budget_total": "Budget",
-            "spent_total": "USD Amount",
-            "remain": "Remain"
-        }).copy()
-        for col in ["Budget", "USD Amount", "Remain"]:
-            show[col] = show[col].apply(money)
-
-        st.dataframe(show, use_container_width=True)
-
-        st.download_button(
-            "⬇️ Download Phase Summary CSV",
-            data=df_out.to_csv(index=False).encode("utf-8"),
-            file_name="phase_summary.csv",
-            mime="text/csv"
-        )
-
-    except Error as e:
-        st.error(f"Database error (Summary tab): {e}")
+try:
+    recent_q = """
+        SELECT
+            t.transaction_id,
+            t.transaction_date,
+            b.budget_line,
+            t.description,
+            t.amount_usd,
+            t.notes
+        FROM transactions t
+        JOIN budgets b ON b.budget_id = t.budget_id
+        ORDER BY t.transaction_date DESC, t.transaction_id DESC
+        LIMIT 50
+    """
+    recent_df = pd.read_sql(recent_q, conn)
+    if not recent_df.empty:
+        view = recent_df.copy()
+        view["amount_usd"] = view["amount_usd"].apply(money)
+        st.dataframe(view, use_container_width=True)
+    else:
+        st.info("No transactions yet.")
+except Error as e:
+    st.error(f"Could not load recent transactions: {e}")
 
 # ---------------------------------------
 # Close connection
