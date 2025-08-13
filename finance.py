@@ -1,11 +1,11 @@
 import streamlit as st
-import vision
-import current
+import importlib
+
 import home
+import current
+import vision
 import phase1
 import phase2
-import finance           # existing Finance page (top-level or render_finance)
-import transaction_entry # NEW: Transaction Entry page (top-level script)
 
 def main():
     st.set_page_config(page_title="Amas Data-Driven Strategy", layout="wide")
@@ -30,20 +30,17 @@ def main():
     st.sidebar.title("Navigation")
     st.sidebar.markdown("### AMAS's Data-Driven Strategy for 2025")
 
-    pages = {
-        "Home": "Home",
-        "Current Stage": "Current Stage",
-        "Vision": "Vision",
-        "Phase 1": "Phase 1",
-        "Phase 2": "Phase 2",
-        "Finance": "Finance",
-        "Transaction Entry": "Transaction Entry",  # <-- NEW PAGE
-    }
-
-    active_page = "Home"
-    for page_name in pages.keys():
-        if st.sidebar.button(page_name):
-            active_page = page_name
+    # Note: radio is more reliable than multiple buttons for navigation state
+    pages = [
+        "Home",
+        "Current Stage",
+        "Vision",
+        "Phase 1",
+        "Phase 2",
+        "Finance",
+        "Transaction Entry",
+    ]
+    active_page = st.sidebar.radio("Go to", pages, index=0)
 
     # --- Main Content ---
     if active_page == "Home":
@@ -57,17 +54,21 @@ def main():
     elif active_page == "Phase 2":
         phase2.render_phase2()
     elif active_page == "Finance":
-        # If your finance module exposes a function, call it; otherwise it renders on import.
+        # Lazy import to avoid startup errors / circular imports
         try:
-            finance.render_finance()
-        except AttributeError:
-            pass
+            finance = importlib.import_module("finance")
+            # Call a render function if it exists; otherwise assume module renders on import
+            if hasattr(finance, "render_finance"):
+                finance.render_finance()
+        except ModuleNotFoundError as e:
+            st.error(f"Finance module not found: {e}")
     elif active_page == "Transaction Entry":
-        # If your transaction entry module exposes a function, call it; otherwise it renders on import.
         try:
-            transaction_entry.render_transaction_entry()
-        except AttributeError:
-            pass
+            tx = importlib.import_module("transaction_entry")  # or "Transaction_Entry" if that's your filename
+            if hasattr(tx, "render_transaction_entry"):
+                tx.render_transaction_entry()
+        except ModuleNotFoundError as e:
+            st.error(f"Transaction Entry module not found: {e}")
 
 if __name__ == "__main__":
     main()
