@@ -5,6 +5,7 @@ import current
 import vision
 import phase1
 import phase2
+import phase3   # <-- NEW: must expose render_phase3()
 import finance  # must expose render_finance()
 
 # ----------------------------------------------------
@@ -51,6 +52,7 @@ PAGES = {
     "Vision": "Vision",
     "Phase 1": "Phase 1",
     "Phase 2": "Phase 2",
+    "Phase 3": "Phase 3",   # <-- NEW
     "Finance": "Finance",
 }
 
@@ -81,5 +83,7 @@ elif page == "Phase 1":
     phase1.render_phase1()
 elif page == "Phase 2":
     phase2.render_phase2()
+elif page == "Phase 3":                # <-- NEW
+    phase3.render_phase3()
 elif page == "Finance":
     finance.render_finance()
