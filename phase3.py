@@ -1,12 +1,5 @@
 import streamlit as st
 import pandas as pd
-from streamlit_lottie import st_lottie
-import json
-
-# ------------ Lottie Loader ------------
-def load_lottie_animation(filepath):
-    with open(filepath, "r") as f:
-        return json.load(f)
 
 # ------------ Phase 3 Workstreams (Top-Level Budget) ------------
 # NOTE: These are the budgeted lines that sum to the base total (11,200).
@@ -16,7 +9,7 @@ phase3_workstreams = [
         "Start": "2025-10-11",
         "End": "2025-11-30",
         "Budget": 2300,
-        "Lottie": "input/phase3/llm.json",
+        "Icon": "🤖",
         "Details": """
 - Conversational AI for founders (insights, summaries, proactive alerts)
 - Connects to finance, supply, inventory, and HR data
@@ -28,7 +21,7 @@ phase3_workstreams = [
         "Start": "2025-10-11",
         "End": "2025-11-20",
         "Budget": 2000,
-        "Lottie": "input/phase3/supplier.json",
+        "Icon": "🏬",
         "Details": """
 - Supplier accounts, POs, invoices, delivery tracking
 - Tight integration with Automated Purchase Order logic
@@ -39,7 +32,7 @@ phase3_workstreams = [
         "Start": "2025-11-15",
         "End": "2025-12-20",
         "Budget": 2000,
-        "Lottie": "input/phase3/customer.json",
+        "Icon": "👥",
         "Details": """
 - Customer profiles, loyalty/credit, purchase history
 - CRM foundation and personalization data source for the LLM
@@ -50,7 +43,7 @@ phase3_workstreams = [
         "Start": "2025-12-10",
         "End": "2025-12-31",
         "Budget": 1300,
-        "Lottie": "input/phase3/bakery.json",
+        "Icon": "🍞",
         "Details": """
 - Ingredient usage, production, waste tracking, and sales syncing
 - Real-time linkage to inventory and supplier ordering
@@ -61,7 +54,7 @@ phase3_workstreams = [
         "Start": "2025-12-10",
         "End": "2025-12-31",
         "Budget": 1300,
-        "Lottie": "input/phase3/butchery.json",
+        "Icon": "🥩",
         "Details": """
 - Batch tracking, yield, waste, costing, and sales syncing
 - Improves stock precision and profitability analytics
@@ -72,7 +65,7 @@ phase3_workstreams = [
         "Start": "2025-10-11",
         "End": "2025-12-31",
         "Budget": 2300,
-        "Lottie": "input/phase3/enhancements.json",
+        "Icon": "⚙️",
         "Details": """
 - Targeted upgrades across: Data Room, Cashier, Automated PO, HR Monitoring
 - See detailed sub-allocation in the Enhancements section
@@ -80,15 +73,14 @@ phase3_workstreams = [
     },
 ]
 
-# ------------ Phase 3 Enhancements (Sub-allocation; do NOT add to total again) ------------
-# These roll up to the single "Enhancements (Total)" line above.
+# ------------ Phase 3 Enhancements (Sub-allocation; already included in "Enhancements (Total)") ------------
 phase3_enhancements = [
     {
         "Task": "Data Room Enhancement",
         "Start": "2025-10-11",
         "End": "2025-11-10",
         "Budget": 800,
-        "Lottie": "input/phase3/enh_data_room.json",
+        "Icon": "📊",
         "Details": """
 - Improve dashboards and metrics coverage
 - Double analytic depth across existing modules
@@ -99,7 +91,7 @@ phase3_enhancements = [
         "Start": "2025-11-01",
         "End": "2025-12-10",
         "Budget": 700,
-        "Lottie": "input/phase3/enh_cashier.json",
+        "Icon": "💳",
         "Details": """
 - Founder/role-aware views: balances, credits, KPIs, alerts
 - Deeper analytics, anomaly checks, and permissions
@@ -110,7 +102,7 @@ phase3_enhancements = [
         "Start": "2025-11-15",
         "End": "2025-12-20",
         "Budget": 500,
-        "Lottie": "input/phase3/enh_apo.json",
+        "Icon": "🧾",
         "Details": """
 - Refine forecasting signals, reorder rules, and approval thresholds
 - Strengthen integration with Supplier/Inventory modules
@@ -121,7 +113,7 @@ phase3_enhancements = [
         "Start": "2025-12-01",
         "End": "2025-12-20",
         "Budget": 300,
-        "Lottie": "input/phase3/enh_hr.json",
+        "Icon": "🧑‍💼",
         "Details": """
 - Attendance, shift analytics, and productivity insights (monitoring only)
 - Cross-links with cashier and operations data
@@ -154,20 +146,15 @@ This section outlines the **Phase 3** program for AMAS Hypermarket. Five tabs ar
     with tab_plan:
         st.subheader("Plan Overview (Top-Level Workstreams)")
         for i, row in df.iterrows():
-            lottie_file = row["Lottie"]
+            # Alternating columns for a balanced layout
             if i % 2 == 0:
-                col_img, col_text = st.columns([1, 3])
+                col_icon, col_text = st.columns([1, 3])
             else:
-                col_text, col_img = st.columns([3, 1])
+                col_text, col_icon = st.columns([3, 1])
 
-            with col_img:
-                try:
-                    st_lottie(load_lottie_animation(lottie_file), height=200, width=180)
-                except Exception:
-                    st.image(
-                        "https://via.placeholder.com/180x200?text=Phase+3",
-                        caption=row["Task"], use_container_width=True
-                    )
+            with col_icon:
+                st.markdown(f"<div style='font-size:56px; line-height:1'>{row['Icon']}</div>", unsafe_allow_html=True)
+
             with col_text:
                 st.markdown(f"### {row['Task']}")
                 st.markdown(f"**Timeline:** {row['Start']} to {row['End']}")
@@ -176,22 +163,12 @@ This section outlines the **Phase 3** program for AMAS Hypermarket. Five tabs ar
             st.write("---")
 
         st.subheader("Enhancements — Sub-allocation (rolls up to 'Enhancements (Total)')")
-        for j, row in enh_df.iterrows():
-            with st.expander(row["Task"]):
-                col_img, col_text = st.columns([1, 3])
-                with col_img:
-                    try:
-                        st_lottie(load_lottie_animation(row["Lottie"]), height=180, width=160)
-                    except Exception:
-                        st.image(
-                            "https://via.placeholder.com/160x180?text=Enhancement",
-                            caption=row["Task"], use_container_width=True
-                        )
-                with col_text:
-                    st.markdown(f"**Timeline:** {row['Start']} to {row['End']}")
-                    st.markdown(f"**Budget (part of Enhancements Total):** ${row['Budget']:,}")
-                    st.markdown("**Details:**")
-                    st.markdown(row["Details"])
+        for _, row in enh_df.iterrows():
+            with st.expander(f"{row['Icon']}  {row['Task']}"):
+                st.markdown(f"**Timeline:** {row['Start']} to {row['End']}")
+                st.markdown(f"**Budget (part of Enhancements Total):** ${row['Budget']:,}")
+                st.markdown("**Details:**")
+                st.markdown(row["Details"])
 
         # Totals (base + contingency)
         base_total = sum(item['Budget'] for item in phase3_workstreams if isinstance(item['Budget'], int))
@@ -209,7 +186,7 @@ This section outlines the **Phase 3** program for AMAS Hypermarket. Five tabs ar
     with tab_tasks:
         st.subheader("Phase 3 Tasks (Top-Level)")
         for _, row in df.iterrows():
-            with st.expander(row["Task"]):
+            with st.expander(f"{row['Icon']}  {row['Task']}"):
                 st.markdown(f"**Timeline:** {row['Start']} to {row['End']}")
                 st.markdown(f"**Budget:** ${row['Budget']:,}")
                 st.markdown("**Details:**")
@@ -217,7 +194,7 @@ This section outlines the **Phase 3** program for AMAS Hypermarket. Five tabs ar
 
         st.subheader("Enhancements (Breakdown)")
         for _, row in enh_df.iterrows():
-            with st.expander(row["Task"]):
+            with st.expander(f"{row['Icon']}  {row['Task']}"):
                 st.markdown(f"**Timeline:** {row['Start']} to {row['End']}")
                 st.markdown(f"**Budget (included in Enhancements Total):** ${row['Budget']:,}")
                 st.markdown("**Details:**")
